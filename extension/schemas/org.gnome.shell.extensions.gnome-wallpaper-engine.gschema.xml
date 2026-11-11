@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <enum id="org.gnome.shell.extensions.gnome-wallpaper-engine.Fit">
+    <value nick="cover" value="0"/>
+    <value nick="contain" value="1"/>
+    <value nick="fill" value="2"/>
+  </enum>
+  <enum id="org.gnome.shell.extensions.gnome-wallpaper-engine.PauseMode">
+    <value nick="never" value="0"/>
+    <value nick="fullscreen" value="1"/>
+    <value nick="maximized" value="2"/>
+  </enum>
+  <schema id="org.gnome.shell.extensions.gnome-wallpaper-engine"
+          path="/org/gnome/shell/extensions/gnome-wallpaper-engine/">
+    <key name="wallpaper" type="s">
+      <default>''</default>
+      <summary>Directory of the active Wallpaper Engine project (contains project.json)</summary>
+    </key>
+    <key name="muted" type="b">
+      <default>false</default>
+    </key>
+    <key name="volume" type="i">
+      <range min="0" max="100"/>
+      <default>50</default>
+    </key>
+    <key name="fit" enum="org.gnome.shell.extensions.gnome-wallpaper-engine.Fit">
+      <default>'cover'</default>
+      <summary>How video and scene wallpapers are scaled to the monitor</summary>
+    </key>
+    <key name="pause-mode" enum="org.gnome.shell.extensions.gnome-wallpaper-engine.PauseMode">
+      <default>'maximized'</default>
+      <summary>Pause playback while every monitor is covered by a fullscreen (or maximized) window</summary>
+    </key>
+    <key name="paused" type="b">
+      <default>false</default>
+      <summary>Playback is paused by the user</summary>
+    </key>
+    <key name="extra-dirs" type="as">
+      <default>[]</default>
+      <summary>Additional directories scanned for wallpaper projects</summary>
+    </key>
+    <key name="scene-renderer" type="s">
+      <default>''</default>
+      <summary>Path to the linux-wallpaperengine binary; empty to look it up in PATH</summary>
+    </key>
+    <key name="user-properties" type="s">
+      <default>'{}'</default>
+      <summary>JSON object of per-wallpaper property overrides, keyed by project directory</summary>
+    </key>
+  </schema>
+</schemalist>

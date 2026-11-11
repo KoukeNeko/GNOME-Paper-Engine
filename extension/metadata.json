@@ -1,0 +1,8 @@
+{
+  "uuid": "gnome-wallpaper-engine@doeshing",
+  "name": "Wallpaper Engine",
+  "description": "Use your Steam Wallpaper Engine wallpapers as live desktop backgrounds on GNOME.",
+  "shell-version": ["51"],
+  "settings-schema": "org.gnome.shell.extensions.gnome-wallpaper-engine",
+  "url": ""
+}
