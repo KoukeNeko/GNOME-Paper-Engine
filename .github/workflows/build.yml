@@ -14,6 +14,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install gettext
+        run: sudo apt-get update && sudo apt-get install --yes gettext
+
       - name: Check scripts and settings schema
         run: |
           bash -n install.sh build-deb.sh setup-scene-renderer.sh
