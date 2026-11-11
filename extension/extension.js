@@ -30,6 +30,9 @@ const POINTER_INTERVAL_MS = 33;
 const LOCK_SCREEN_CHECK_MS = 500;
 const LOCK_SCREEN_BRIGHTNESS = -0.2;
 
+// Settings that only take effect by restarting the renderer.
+const RELAUNCH_KEYS = ['wallpaper', 'monitor-wallpapers', 'fit', 'scene-renderer', 'user-properties', 'muted', 'volume'];
+
 const SCENE_SCALING = {cover: 'fill', contain: 'fit', fill: 'stretch'};
 
 const SIGSTOP = 19;
@@ -53,6 +56,7 @@ export default class PaperEngineExtension extends Extension {
         this._relaunchId = 0;
         this._pauseCheckId = 0;
         this._lockScreenId = 0;
+        this._rotationId = 0;
         this._lockScreenClones = new Set();
         this._signals = [];
 
@@ -71,6 +75,7 @@ export default class PaperEngineExtension extends Extension {
             connect(global.window_manager, signal, () => this._queuePauseCheck());
         connect(global.display, 'restacked', () => this._queuePauseCheck());
 
+        this._scheduleRotation();
         if (Main.layoutManager._startingUp)
             connect(Main.layoutManager, 'startup-complete', () => this._launch());
         else
@@ -89,6 +94,9 @@ export default class PaperEngineExtension extends Extension {
             GLib.source_remove(this._pointerId);
         if (this._lockScreenId)
             GLib.source_remove(this._lockScreenId);
+        if (this._rotationId)
+            GLib.source_remove(this._rotationId);
+        this._rotationId = 0;
         this._lockScreenId = 0;
         this._pointerId = 0;
         this._relaunchId = 0;
@@ -109,10 +117,42 @@ export default class PaperEngineExtension extends Extension {
             this._onSessionModeChanged();
         } else if (key === 'pause-mode' || key === 'paused') {
             this._queuePauseCheck();
-        } else if (key !== 'extra-dirs') {
+        } else if (key === 'rotation-interval') {
+            this._scheduleRotation();
+        } else if (RELAUNCH_KEYS.includes(key)) {
             this._failures = 0;
             this._launch();
         }
+    }
+
+    // (Re)starts the timer that moves on to the next playlist wallpaper.
+    _scheduleRotation() {
+        if (this._rotationId) {
+            GLib.source_remove(this._rotationId);
+            this._rotationId = 0;
+        }
+        const minutes = this._settings.get_int('rotation-interval');
+        if (minutes === 0)
+            return;
+        this._rotationId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, minutes * 60, () => {
+            // Nobody sees the wallpaper while it is paused; wait for the next round.
+            if (!this._paused)
+                this._showNextInPlaylist();
+            return GLib.SOURCE_CONTINUE;
+        });
+    }
+
+    _showNextInPlaylist() {
+        const playlist = this._settings.get_strv('playlist').filter(dir => loadProject(dir) !== null);
+        const current = this._settings.get_string('wallpaper');
+        const others = playlist.filter(dir => dir !== current);
+        if (others.length === 0)
+            return;
+        const next = this._settings.get_boolean('rotation-shuffle')
+            ? others[Math.floor(Math.random() * others.length)]
+            // After the current one, wrapping around; the first if the current is not in the list.
+            : playlist[(playlist.indexOf(current) + 1) % playlist.length];
+        this._settings.set_string('wallpaper', next);
     }
 
     _launch() {
@@ -127,9 +167,48 @@ export default class PaperEngineExtension extends Extension {
         if (this._settings.get_boolean('paused'))
             this._settings.set_boolean('paused', false);
 
-        const dir = this._settings.get_string('wallpaper');
-        if (!dir)
-            return;
+        for (const [dir, monitors] of this._wallpaperAssignments())
+            this._launchProject(dir, monitors);
+
+        this._queuePauseCheck();
+        if (this._renderers.length > 0 && !this._pointerId) {
+            this._pointerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, POINTER_INTERVAL_MS, () => {
+                this._forwardPointer();
+                return GLib.SOURCE_CONTINUE;
+            });
+        }
+    }
+
+    // Which wallpaper goes on which monitors: Map of project directory →
+    // monitors. Monitors without an entry of their own in monitor-wallpapers
+    // (keyed by connector name) get the default wallpaper.
+    _wallpaperAssignments() {
+        let perMonitor = {};
+        try {
+            perMonitor = JSON.parse(this._settings.get_string('monitor-wallpapers'));
+        } catch (e) {
+            console.warn(`${this.uuid}: ignoring malformed monitor-wallpapers: ${e.message}`);
+        }
+        const monitorManager = global.backend.get_monitor_manager();
+        const directories = Main.layoutManager.monitors.map(() => this._settings.get_string('wallpaper'));
+        for (const [connector, dir] of Object.entries(perMonitor)) {
+            const index = monitorManager.get_monitor_for_connector(connector);
+            if (index >= 0 && index < directories.length)
+                directories[index] = dir;
+        }
+
+        const assignments = new Map();
+        directories.forEach((dir, index) => {
+            if (!dir)
+                return;
+            if (!assignments.has(dir))
+                assignments.set(dir, []);
+            assignments.get(dir).push(Main.layoutManager.monitors[index]);
+        });
+        return assignments;
+    }
+
+    _launchProject(dir, monitors) {
         const project = loadProject(dir);
         if (!project) {
             this._notify(_('No wallpaper project found in %s').replace('%s', dir));
@@ -146,9 +225,9 @@ export default class PaperEngineExtension extends Extension {
 
         try {
             if (project.type === 'video' || project.type === 'web')
-                this._spawnBuiltinRenderer(project, properties);
+                this._spawnBuiltinRenderer(project, properties, monitors);
             else if (project.type === 'scene')
-                this._spawnSceneRenderers(project, properties);
+                this._spawnSceneRenderers(project, properties, monitors);
             else
                 this._notify(_('“%s” is a “%s” wallpaper, which is not supported')
                     .replace('%s', project.title).replace('%s', project.type));
@@ -156,23 +235,16 @@ export default class PaperEngineExtension extends Extension {
             console.error(e);
             this._notify(_('Could not start the wallpaper renderer: %s').replace('%s', e.message));
         }
-        this._queuePauseCheck();
-        if (this._renderers.length > 0 && !this._pointerId) {
-            this._pointerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, POINTER_INTERVAL_MS, () => {
-                this._forwardPointer();
-                return GLib.SOURCE_CONTINUE;
-            });
-        }
     }
 
-    _spawnBuiltinRenderer(project, properties) {
+    _spawnBuiltinRenderer(project, properties, monitors) {
         const argv = [
             'gjs', '-m', GLib.build_filenamev([this.path, 'renderer.js']),
             '--type', project.type,
             '--file', project.file,
             '--fit', this._settings.get_string('fit'),
             '--volume', `${this._settings.get_int('volume')}`,
-            '--monitors', `${Main.layoutManager.monitors.length}`,
+            '--monitors', monitors.map(monitor => monitor.index).join(','),
             // Wallpaper Engine hands pages their properties as {name: {value}}.
             '--properties', JSON.stringify(Object.fromEntries(
                 Object.entries(properties).map(([name, value]) => [name, {value}]))),
@@ -183,7 +255,7 @@ export default class PaperEngineExtension extends Extension {
     }
 
     // linux-wallpaperengine opens a single window, so run one per monitor.
-    _spawnSceneRenderers(project, properties) {
+    _spawnSceneRenderers(project, properties, monitors) {
         const binary = findSceneRenderer(this._settings.get_string('scene-renderer'));
         if (!binary) {
             this._notify(_('Scene wallpapers need the scene renderer. Run gnome-paper-engine-setup-scene (setup-scene-renderer.sh in a source checkout) to install it.'));
@@ -195,7 +267,7 @@ export default class PaperEngineExtension extends Extension {
             return;
         }
 
-        for (const monitor of Main.layoutManager.monitors) {
+        for (const monitor of monitors) {
             const argv = [
                 binary,
                 '--assets-dir', assetsDir,

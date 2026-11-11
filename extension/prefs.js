@@ -51,6 +51,7 @@ const LIBRARY_VIEWS = [
     ['scene', 'applications-graphics-symbolic', N_('Scene')],
     ['video', 'video-x-generic-symbolic', N_('Video')],
     ['web', 'web-browser-symbolic', N_('Web')],
+    ['playlist', 'media-playlist-repeat-symbolic', N_('Playlist')],
 ];
 const WORKSHOP_VIEWS = [
     ['trend', 'starred-symbolic', N_('Trending this week')],
@@ -61,7 +62,7 @@ const SUBSCRIBED_VIEW = ['subscribed', 'emblem-ok-symbolic', N_('Subscribed')];
 const SETTINGS_VIEW = ['settings', 'emblem-system-symbolic', N_('Playback and performance')];
 const VIEW_TITLES = {
     all: N_('All wallpapers'), scene: N_('Scene wallpapers'), video: N_('Video wallpapers'),
-    web: N_('Web wallpapers'), subscribed: N_('Subscribed wallpapers'),
+    web: N_('Web wallpapers'), subscribed: N_('Subscribed wallpapers'), playlist: N_('Playlist'),
     trend: N_('Workshop · Trending this week'), recent: N_('Workshop · Most recent'),
     top: N_('Workshop · Most subscribed'), settings: N_('Playback and performance'),
 };
@@ -211,11 +212,13 @@ class Picker {
 
         this._settingsIds.push(
             settings.connect('changed::wallpaper', () => this._onWallpaperChanged()),
+            settings.connect('changed::monitor-wallpapers', () => this._onWallpaperChanged()),
             settings.connect('changed::paused', () => this._updateNowPlaying()),
             // Changing one option can reveal or hide others.
             settings.connect('changed::user-properties', () => this._refreshProperties?.()),
             settings.connect('changed::muted', () => this._updateNowPlaying()),
-            settings.connect('changed::extra-dirs', () => this._reloadLibrary()));
+            settings.connect('changed::extra-dirs', () => this._reloadLibrary()),
+            settings.connect('changed::playlist', () => this._onPlaylistChanged()));
         // Steam adds a directory here when a subscribed wallpaper is downloaded.
         for (const dir of findWorkshopDirs()) {
             try {
@@ -370,7 +373,7 @@ class Picker {
         // Double-click (or Enter) applies an installed wallpaper.
         this._flowBox.connect('child-activated', (_box, card) => {
             if (card.item.dir && isSceneSupported(card.item))
-                this._settings.set_string('wallpaper', card.item.dir);
+                this._applyToAll(card.item.dir);
         });
 
         this._moreButton = new Gtk.Button({
@@ -473,6 +476,7 @@ class Picker {
         for (const type of SUPPORTED_TYPES)
             this._navRows.get(type).count.label = `${countOf(type)}`;
         this._navRows.get('subscribed').count.label = `${this._projects.filter(project => project.workshopId).length}`;
+        this._updatePlaylistCount();
 
         this._sceneNotice.revealed = countOf('scene') > 0 &&
             !findSceneRenderer(this._settings.get_string('scene-renderer'));
@@ -485,12 +489,18 @@ class Picker {
     }
 
     _populateLibrary() {
-        const current = this._settings.get_string('wallpaper');
+        const inUse = this._inUseDirs();
         const projects = this._projects
-            .filter(project => this._view === 'all' ||
-                (this._view === 'subscribed' ? project.workshopId : project.type === this._view))
+            .filter(project => {
+                switch (this._view) {
+                case 'all': return true;
+                case 'subscribed': return project.workshopId;
+                case 'playlist': return this._settings.get_strv('playlist').includes(project.dir);
+                default: return project.type === this._view;
+                }
+            })
             // The active wallpaper comes first so it is visible right away.
-            .sort((a, b) => (b.dir === current) - (a.dir === current));
+            .sort((a, b) => inUse.has(b.dir) - inUse.has(a.dir));
 
         this._title.subtitle = format(_('%s wallpapers'), projects.length);
         if (projects.length === 0) {
@@ -595,10 +605,10 @@ class Picker {
     }
 
     _refreshBadges() {
-        const current = this._settings.get_string('wallpaper');
+        const inUse = this._inUseDirs();
         for (let card = this._flowBox.get_first_child(); card; card = card.get_next_sibling()) {
             const project = this._libraryProjectFor(card.item);
-            if (project?.dir === current)
+            if (project && inUse.has(project.dir))
                 card.setBadge(`● ${_('In use')}`);
             else if (project && !isSceneSupported(project))
                 card.setBadge(_('Not supported'), true);
@@ -640,7 +650,7 @@ class Picker {
         this._selected = item;
         this._refreshProperties = null;
         const project = this._libraryProjectFor(item);
-        const current = this._settings.get_string('wallpaper');
+        const inUse = this._inUseDirs();
 
         const hero = new Gtk.Picture({
             content_fit: Gtk.ContentFit.COVER, height_request: 308, css_classes: ['gpe-hero', 'card'],
@@ -683,17 +693,37 @@ class Picker {
         if (project && !isSceneSupported(project)) {
             widgets.push(pill(_('Cannot be applied'), [], null));
             addCaption(_('This scene uses a 3D perspective camera, which the scene renderer cannot show yet.'), ['warning']);
-        } else if (project?.dir === current) {
+        } else if (project && inUse.has(project.dir)) {
             widgets.push(pill(`✓ ${_('In use')}`, [], null));
-            widgets.push(pill(_('Stop wallpaper'), [], () => this._settings.set_string('wallpaper', '')));
+            widgets.push(pill(_('Stop wallpaper'), [], () => this._applyToAll('')));
         } else if (project) {
-            widgets.push(pill(_('Apply wallpaper'), ['suggested-action'], () => this._settings.set_string('wallpaper', project.dir)));
+            widgets.push(pill(_('Apply wallpaper'), ['suggested-action'], () => this._applyToAll(project.dir)));
         } else {
             widgets.push(pill(format(_('Subscribe in Steam (%s)'), formatSize(item.size)), ['suggested-action'], () => {
                 Gio.AppInfo.launch_default_for_uri(Workshop.steamPageUri(item.id), null);
                 this._toastOverlay.add_toast(new Adw.Toast({title: _('Opened in Steam: press Subscribe there and it downloads automatically.')}));
             }));
             addCaption(_('Subscribing goes through your Steam account; the wallpaper appears in the library once it is downloaded.'), ['dim-label', 'caption']);
+        }
+        // With several monitors, a wallpaper can also go on just one of them.
+        const monitors = this._window.get_display().get_monitors();
+        if (project && isSceneSupported(project) && monitors.get_n_items() > 1) {
+            for (let i = 0; i < monitors.get_n_items(); i++) {
+                const connector = monitors.get_item(i).get_connector();
+                widgets.push(pill(format(_('Apply to %s only'), connector), [], () => {
+                    const perMonitor = this._monitorWallpapers();
+                    perMonitor[connector] = project.dir;
+                    this._settings.set_string('monitor-wallpapers', JSON.stringify(perMonitor));
+                }));
+            }
+        }
+        if (project && isSceneSupported(project)) {
+            const inPlaylist = this._settings.get_strv('playlist').includes(project.dir);
+            widgets.push(pill(inPlaylist ? _('Remove from playlist') : _('Add to playlist'), [], () => {
+                const playlist = this._settings.get_strv('playlist');
+                this._settings.set_strv('playlist', inPlaylist
+                    ? playlist.filter(dir => dir !== project.dir) : [...playlist, project.dir]);
+            }));
         }
         const workshopId = item.dir ? item.workshopId : item.id;
         if (workshopId && project) {
@@ -849,6 +879,41 @@ class Picker {
         }
     }
 
+    /** Per-monitor wallpapers: {connector name: project directory}. */
+    _monitorWallpapers() {
+        try {
+            return JSON.parse(this._settings.get_string('monitor-wallpapers'));
+        } catch {
+            return {};
+        }
+    }
+
+    /** Project directories shown on at least one monitor. */
+    _inUseDirs() {
+        return new Set([this._settings.get_string('wallpaper'), ...Object.values(this._monitorWallpapers())]
+            .filter(dir => dir));
+    }
+
+    /** Shows one wallpaper (or none, for '') on every monitor. */
+    _applyToAll(dir) {
+        this._settings.set_string('monitor-wallpapers', '{}');
+        this._settings.set_string('wallpaper', dir);
+    }
+
+    _updatePlaylistCount() {
+        const playlist = this._settings.get_strv('playlist');
+        this._navRows.get('playlist').count.label =
+            `${this._projects.filter(project => playlist.includes(project.dir)).length}`;
+    }
+
+    _onPlaylistChanged() {
+        this._updatePlaylistCount();
+        if (this._view === 'playlist')
+            this._populateLibrary();
+        else if (this._selected)
+            this._showDetails(this._selected);
+    }
+
     // ───────── Now playing ─────────
 
     _onWallpaperChanged() {
@@ -894,7 +959,7 @@ class Picker {
             () => this._settings.set_boolean('paused', !paused));
         control(muted ? 'audio-volume-muted-symbolic' : 'audio-volume-high-symbolic', muted ? _('Unmute') : _('Mute'),
             () => this._settings.set_boolean('muted', !muted));
-        control('media-playback-stop-symbolic', _('Stop wallpaper'), () => this._settings.set_string('wallpaper', ''));
+        control('media-playback-stop-symbolic', _('Stop wallpaper'), () => this._applyToAll(''));
         this._nowPlaying.append(controls);
     }
 
@@ -927,6 +992,22 @@ class Picker {
         });
         settings.bind('show-on-lock-screen', lockScreenRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         playback.add(lockScreenRow);
+
+        const rotation = new Adw.PreferencesGroup({
+            title: _('Playlist'),
+            description: _('Add wallpapers to the playlist from their details, then let them rotate.'),
+        });
+        page.add(rotation);
+        const intervalRow = new Adw.SpinRow({
+            title: _('Change wallpaper every'),
+            subtitle: _('Minutes; 0 turns rotation off'),
+            adjustment: new Gtk.Adjustment({lower: 0, upper: 1440, step_increment: 5}),
+        });
+        settings.bind('rotation-interval', intervalRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+        rotation.add(intervalRow);
+        const shuffleRow = new Adw.SwitchRow({title: _('Shuffle')});
+        settings.bind('rotation-shuffle', shuffleRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        rotation.add(shuffleRow);
 
         const appearance = new Adw.PreferencesGroup({title: _('Interface')});
         page.add(appearance);

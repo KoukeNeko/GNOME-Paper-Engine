@@ -10,7 +10,7 @@ own Steam library; nothing is bundled here.
 | Wallpaper type | Rendered by | Status |
 | --- | --- | --- |
 | Video | built-in renderer (WebKitGTK + GStreamer) | works out of the box |
-| Web | built-in renderer (WebKitGTK) | works out of the box; user properties supported, audio-reactive data is not |
+| Web | built-in renderer (WebKitGTK) | works out of the box; user properties and audio-reactive data supported |
 | Scene | [linux-wallpaperengine](https://github.com/Almamu/linux-wallpaperengine) | needs `setup-scene-renderer.sh`; fidelity is whatever that project supports |
 | Application | — | not supported (Windows executables) |
 
@@ -110,7 +110,12 @@ the picker opens the wallpaper's page in the Steam client, and it appears in
 the library once Steam has downloaded it.
 
 By default playback pauses while every monitor is covered by a maximized or
-fullscreen window. The same wallpaper is shown on every monitor.
+fullscreen window. With several monitors, a wallpaper can be applied to all
+of them or to one. Wallpapers added to the playlist can rotate on a timer
+(*Playback and performance → Playlist*).
+
+Web wallpapers that visualise audio get the spectrum of whatever the system
+is playing; it is only captured while such a wallpaper is running.
 
 The wallpaper never receives input itself, so the extension forwards the
 pointer position and left clicks that start on the desktop; wallpapers react

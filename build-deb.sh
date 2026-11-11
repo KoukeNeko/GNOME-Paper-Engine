@@ -92,7 +92,7 @@ Section: gnome
 Priority: optional
 Depends: gnome-shell (>= $SHELL_VERSION), gnome-shell (<< $((SHELL_VERSION + 1))), gjs,
  gir1.2-gtk-3.0, gir1.2-webkit2-4.1, gir1.2-gtk-4.0, gir1.2-adw-1,
- gir1.2-soup-3.0, gir1.2-gdkpixbuf-2.0,
+ gir1.2-soup-3.0, gir1.2-gdkpixbuf-2.0, gir1.2-gstreamer-1.0,
  gstreamer1.0-plugins-good, gstreamer1.0-libav
 Recommends: git, cmake, ninja-build, g++
 Description: Steam Wallpaper Engine wallpapers as live GNOME backgrounds

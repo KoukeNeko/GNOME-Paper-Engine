@@ -307,3 +307,27 @@ msgstr "語言"
 
 msgid "Takes effect the next time this window is opened"
 msgstr "下次開啟這個視窗時生效"
+
+msgid "Playlist"
+msgstr "播放清單"
+
+msgid "Remove from playlist"
+msgstr "從播放清單移除"
+
+msgid "Add to playlist"
+msgstr "加入播放清單"
+
+msgid "Add wallpapers to the playlist from their details, then let them rotate."
+msgstr "在桌布的詳細資訊裡加入播放清單，就能定時輪播。"
+
+msgid "Change wallpaper every"
+msgstr "每隔多久換一張桌布"
+
+msgid "Minutes; 0 turns rotation off"
+msgstr "單位為分鐘；0 表示不輪播"
+
+msgid "Shuffle"
+msgstr "隨機順序"
+
+msgid "Apply to %s only"
+msgstr "只套用到 %s"

@@ -16,6 +16,10 @@
       <default>''</default>
       <summary>Directory of the active Wallpaper Engine project (contains project.json)</summary>
     </key>
+    <key name="monitor-wallpapers" type="s">
+      <default>'{}'</default>
+      <summary>JSON object of project directories for individual monitors, keyed by connector name; other monitors show the default wallpaper</summary>
+    </key>
     <key name="muted" type="b">
       <default>false</default>
     </key>
@@ -34,6 +38,19 @@
     <key name="show-on-lock-screen" type="b">
       <default>true</default>
       <summary>Keep the wallpaper playing behind the lock screen</summary>
+    </key>
+    <key name="playlist" type="as">
+      <default>[]</default>
+      <summary>Project directories of the wallpapers to rotate through</summary>
+    </key>
+    <key name="rotation-interval" type="i">
+      <range min="0" max="1440"/>
+      <default>0</default>
+      <summary>Minutes between playlist wallpapers; 0 turns rotation off</summary>
+    </key>
+    <key name="rotation-shuffle" type="b">
+      <default>false</default>
+      <summary>Pick the next playlist wallpaper at random</summary>
     </key>
     <key name="language" type="s">
       <default>''</default>
