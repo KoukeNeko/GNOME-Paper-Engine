@@ -3,6 +3,7 @@
   "name": "Wallpaper Engine",
   "description": "Use your Steam Wallpaper Engine wallpapers as live desktop backgrounds on GNOME.",
   "shell-version": ["51"],
+  "version-name": "0.1.0",
   "settings-schema": "org.gnome.shell.extensions.gnome-wallpaper-engine",
   "url": ""
 }

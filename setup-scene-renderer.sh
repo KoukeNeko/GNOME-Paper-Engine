@@ -22,7 +22,8 @@ BUILD_DEPENDENCIES=(
     libmpv-dev libpulse-dev libfftw3-dev libdbus-1-dev libxxf86vm-dev
 )
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolved through symlinks: the .deb installs this script as a link in /usr/bin.
+SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 PREFIX="${XDG_DATA_HOME:-$HOME/.local/share}/gnome-wallpaper-engine"
 BUILD_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/gnome-wallpaper-engine"
 SYSROOT="$PREFIX/sysroot"

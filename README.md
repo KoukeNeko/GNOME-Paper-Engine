@@ -23,12 +23,34 @@ No extra packages are needed for video and web wallpapers.
 
 ## Install
 
+### As a .deb package
+
+```bash
+./build-deb.sh
+sudo apt install ./dist/gnome-wallpaper-engine_*_all.deb
+```
+
+Log out and back in, then turn the extension on once:
+
+```bash
+gnome-extensions enable gnome-wallpaper-engine@doeshing
+```
+
+Open **Wallpaper Engine** from the app grid. To remove it again:
+
+```bash
+sudo apt remove gnome-wallpaper-engine
+```
+
+### From the source folder, without root
+
 ```bash
 ./install.sh
 ```
 
 Log out and back in once (a running GNOME Shell only discovers new extensions
-at login), then open **Wallpaper Engine** from the app grid.
+at login), then open **Wallpaper Engine** from the app grid. A copy installed
+this way takes precedence over the package, so use one or the other.
 
 ### Getting wallpapers
 
@@ -46,7 +68,8 @@ You can also add your own folders of wallpaper projects under
 ### Scene wallpapers
 
 ```bash
-./setup-scene-renderer.sh
+gnome-wallpaper-engine-setup-scene   # installed from the .deb
+./setup-scene-renderer.sh            # from the source folder
 ```
 
 This builds linux-wallpaperengine into `~/.local/share/gnome-wallpaper-engine`
@@ -100,11 +123,20 @@ Desktop Icons extension uses, and the wallpaper sits below its icons.
 
 ## Uninstall
 
+The package: `sudo apt remove gnome-wallpaper-engine`.
+
+A source-folder install:
+
 ```bash
 gnome-extensions disable gnome-wallpaper-engine@doeshing
 rm -rf ~/.local/share/gnome-shell/extensions/gnome-wallpaper-engine@doeshing \
-       ~/.local/share/applications/gnome-wallpaper-engine.desktop \
-       ~/.local/share/gnome-wallpaper-engine ~/.cache/gnome-wallpaper-engine
+       ~/.local/share/applications/gnome-wallpaper-engine.desktop
+```
+
+Either way the scene renderer stays in your home folder until you delete it:
+
+```bash
+rm -rf ~/.local/share/gnome-wallpaper-engine ~/.cache/gnome-wallpaper-engine
 ```
 
 ## Licence
