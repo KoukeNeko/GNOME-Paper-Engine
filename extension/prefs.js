@@ -12,9 +12,12 @@ import GObject from 'gi://GObject';
 import Gtk from 'gi://Gtk';
 import Pango from 'gi://Pango';
 
-import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-import {listProjects, loadProject, findSceneRenderer, findWorkshopDirs, isSceneSupported} from './library.js';
+import {
+    listProjects, loadProject, resolveProperties, findSceneRenderer, findWorkshopDirs, isSceneSupported,
+} from './library.js';
+import {evaluateCondition} from './conditions.js';
 import * as Workshop from './workshop.js';
 
 const SUPPORTED_TYPES = ['video', 'web', 'scene'];
@@ -27,36 +30,45 @@ const COLLAPSED_PROPERTIES = 6;
 
 const STEAM_INSTALL_URI = 'steam://install/431960';
 
-const TYPE_LABELS = {scene: '場景', video: '影片', web: '網頁'};
-const FIT_LABELS = {cover: '填滿（裁切）', contain: '完整顯示（留邊）', fill: '延展'};
+// Labels in these tables are translated where they are shown: gettext is not
+// available yet while this module loads.
+const N_ = text => text;
+
+const TYPE_LABELS = {scene: N_('Scene'), video: N_('Video'), web: N_('Web')};
+const FIT_LABELS = {cover: N_('Fill (crop)'), contain: N_('Fit (letterbox)'), fill: N_('Stretch')};
+// Languages the picker can be switched to; the names are deliberately not translated.
+const LANGUAGE_LABELS = {'': N_('System default'), en: 'English', zh_TW: '繁體中文'};
 const PAUSE_LABELS = {
-    maximized: '有視窗最大化或全螢幕時',
-    fullscreen: '有視窗全螢幕時',
-    never: '永不',
+    maximized: N_('When a window is maximized or fullscreen'),
+    fullscreen: N_('When a window is fullscreen'),
+    never: N_('Never'),
 };
 
 // [view id, icon, label]; library views filter what is installed, workshop
 // views query Steam.
 const LIBRARY_VIEWS = [
-    ['all', 'preferences-desktop-wallpaper-symbolic', '全部'],
-    ['scene', 'applications-graphics-symbolic', '場景'],
-    ['video', 'video-x-generic-symbolic', '影片'],
-    ['web', 'web-browser-symbolic', '網頁'],
+    ['all', 'preferences-desktop-wallpaper-symbolic', N_('All')],
+    ['scene', 'applications-graphics-symbolic', N_('Scene')],
+    ['video', 'video-x-generic-symbolic', N_('Video')],
+    ['web', 'web-browser-symbolic', N_('Web')],
 ];
 const WORKSHOP_VIEWS = [
-    ['trend', 'starred-symbolic', '本週熱門'],
-    ['recent', 'document-open-recent-symbolic', '最新上傳'],
-    ['top', 'emblem-favorite-symbolic', '最多訂閱'],
+    ['trend', 'starred-symbolic', N_('Trending this week')],
+    ['recent', 'document-open-recent-symbolic', N_('Most recent')],
+    ['top', 'emblem-favorite-symbolic', N_('Most subscribed')],
 ];
-const SUBSCRIBED_VIEW = ['subscribed', 'emblem-ok-symbolic', '已訂閱'];
-const SETTINGS_VIEW = ['settings', 'emblem-system-symbolic', '播放與效能'];
+const SUBSCRIBED_VIEW = ['subscribed', 'emblem-ok-symbolic', N_('Subscribed')];
+const SETTINGS_VIEW = ['settings', 'emblem-system-symbolic', N_('Playback and performance')];
 const VIEW_TITLES = {
-    all: '全部桌布', scene: '場景桌布', video: '影片桌布', web: '網頁桌布', subscribed: '已訂閱的桌布',
-    trend: '工作坊・本週熱門', recent: '工作坊・最新上傳', top: '工作坊・最多訂閱', settings: '播放與效能',
+    all: N_('All wallpapers'), scene: N_('Scene wallpapers'), video: N_('Video wallpapers'),
+    web: N_('Web wallpapers'), subscribed: N_('Subscribed wallpapers'),
+    trend: N_('Workshop · Trending this week'), recent: N_('Workshop · Most recent'),
+    top: N_('Workshop · Most subscribed'), settings: N_('Playback and performance'),
 };
 // Label → Workshop tag.
 const WORKSHOP_TAGS = {
-    '動漫': 'Anime', '遊戲': 'Game', '風景': 'Landscape', '賽博龐克': 'Cyberpunk', '動物': 'Animal', '4K': '3840 x 2160',
+    [N_('Anime')]: 'Anime', [N_('Game')]: 'Game', [N_('Landscape')]: 'Landscape',
+    [N_('Cyberpunk')]: 'Cyberpunk', [N_('Animal')]: 'Animal', '4K': '3840 x 2160',
 };
 
 const STYLE = `
@@ -73,6 +85,11 @@ const STYLE = `
 .gpe-chip { border-radius: 999px; padding: 2px 12px; min-height: 28px; }
 `;
 
+// Fills the %s placeholders of a translated string, in order.
+function format(template, ...values) {
+    return values.reduce((text, value) => text.replace('%s', value), template);
+}
+
 function stripMarkup(text) {
     return text.replace(/<[^>]*>/g, '').trim();
 }
@@ -84,7 +101,7 @@ function propertyLabel(name, definition) {
     const raw = definition.text ?? '';
     const text = stripMarkup(raw);
     if (text === 'ui_browse_properties_scheme_color')
-        return '主題色';
+        return _('Scheme color');
     if (!text && raw.includes('<'))
         return null;
     return text || name;
@@ -95,7 +112,7 @@ function formatSize(bytes) {
 }
 
 function formatCount(count) {
-    return count >= 10000 ? `${(count / 10000).toFixed(1)} 萬` : count.toLocaleString('zh-TW');
+    return count.toLocaleString();
 }
 
 function loadPreviewTexture(path, size = PREVIEW_SIZE * 2) {
@@ -120,7 +137,7 @@ function createChoiceRow(settings, key, title, labels) {
     const nicks = Object.keys(labels);
     const row = new Adw.ComboRow({
         title,
-        model: Gtk.StringList.new(Object.values(labels)),
+        model: Gtk.StringList.new(Object.values(labels).map(label => _(label))),
         selected: nicks.indexOf(settings.get_string(key)),
     });
     row.connect('notify::selected', () => settings.set_string(key, nicks[row.selected]));
@@ -195,6 +212,8 @@ class Picker {
         this._settingsIds.push(
             settings.connect('changed::wallpaper', () => this._onWallpaperChanged()),
             settings.connect('changed::paused', () => this._updateNowPlaying()),
+            // Changing one option can reveal or hide others.
+            settings.connect('changed::user-properties', () => this._refreshProperties?.()),
             settings.connect('changed::muted', () => this._updateNowPlaying()),
             settings.connect('changed::extra-dirs', () => this._reloadLibrary()));
         // Steam adds a directory here when a subscribed wallpaper is downloaded.
@@ -260,7 +279,7 @@ class Picker {
                 const count = new Gtk.Label({css_classes: ['dim-label', 'caption', 'numeric']});
                 const content = new Gtk.Box({spacing: 10});
                 content.append(new Gtk.Image({icon_name: icon}));
-                content.append(new Gtk.Label({label, xalign: 0, hexpand: true}));
+                content.append(new Gtk.Label({label: _(label), xalign: 0, hexpand: true}));
                 content.append(count);
                 const row = new Gtk.ListBoxRow({child: content});
                 row.viewId = id;
@@ -270,9 +289,9 @@ class Picker {
             list.connect('row-activated', (_list, row) => this._showView(row.viewId));
             navigation.append(list);
         };
-        addSection('桌布庫', LIBRARY_VIEWS);
-        addSection('Steam 工作坊', [...WORKSHOP_VIEWS, SUBSCRIBED_VIEW]);
-        addSection('偏好設定', [SETTINGS_VIEW]);
+        addSection(_('Library'), LIBRARY_VIEWS);
+        addSection(_('Steam Workshop'), [...WORKSHOP_VIEWS, SUBSCRIBED_VIEW]);
+        addSection(_('Preferences'), [SETTINGS_VIEW]);
 
         this._nowPlaying = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 8, css_classes: ['gpe-now']});
 
@@ -287,9 +306,9 @@ class Picker {
 
     _buildContent() {
         this._title = new Adw.WindowTitle();
-        this._searchEntry = new Gtk.SearchEntry({placeholder_text: '搜尋桌布', width_request: 240});
+        this._searchEntry = new Gtk.SearchEntry({placeholder_text: _('Search wallpapers'), width_request: 240});
         this._searchEntry.connect('search-changed', () => this._onSearchChanged());
-        const refreshButton = new Gtk.Button({icon_name: 'view-refresh-symbolic', tooltip_text: '重新整理'});
+        const refreshButton = new Gtk.Button({icon_name: 'view-refresh-symbolic', tooltip_text: _('Refresh')});
         refreshButton.connect('clicked', () => {
             if (this._isWorkshopView)
                 this._loadWorkshop(true);
@@ -308,7 +327,7 @@ class Picker {
         // Workshop tag filters.
         this._tagBar = new Gtk.Box({spacing: 8, margin_start: 20, margin_end: 20, margin_top: 12});
         for (const [label, tag] of Object.entries(WORKSHOP_TAGS)) {
-            const chip = new Gtk.ToggleButton({label, css_classes: ['gpe-chip']});
+            const chip = new Gtk.ToggleButton({label: _(label), css_classes: ['gpe-chip']});
             chip.connect('toggled', () => {
                 if (chip.active) {
                     for (let other = this._tagBar.get_first_child(); other; other = other.get_next_sibling()) {
@@ -327,7 +346,7 @@ class Picker {
         }
 
         this._sceneNotice = new Adw.Banner({
-            title: '場景桌布需要場景渲染器：請先在終端機執行一次 gnome-paper-engine-setup-scene（原始碼安裝則是 setup-scene-renderer.sh）。',
+            title: _('Scene wallpapers need the scene renderer: run gnome-paper-engine-setup-scene in a terminal once (setup-scene-renderer.sh in a source checkout).'),
         });
 
         this._flowBox = new Gtk.FlowBox({
@@ -355,7 +374,7 @@ class Picker {
         });
 
         this._moreButton = new Gtk.Button({
-            label: '載入更多', halign: Gtk.Align.CENTER, css_classes: ['pill'], margin_bottom: 24, visible: false,
+            label: _('Load more'), halign: Gtk.Align.CENTER, css_classes: ['pill'], margin_bottom: 24, visible: false,
         });
         this._moreButton.connect('clicked', () => {
             this._workshopPage++;
@@ -390,7 +409,7 @@ class Picker {
             orientation: Gtk.Orientation.VERTICAL, spacing: 12,
             margin_start: 20, margin_end: 20, margin_top: 4, margin_bottom: 20,
         });
-        const header = new Adw.HeaderBar({title_widget: new Adw.WindowTitle({title: '詳細資訊'})});
+        const header = new Adw.HeaderBar({title_widget: new Adw.WindowTitle({title: _('Details')})});
         this._detailPane = new Adw.ToolbarView({
             content: new Gtk.ScrolledWindow({child: this._detailBox, hscrollbar_policy: Gtk.PolicyType.NEVER}),
             width_request: 348,
@@ -410,16 +429,16 @@ class Picker {
             else
                 list.unselect_row(row);
         }
-        this._title.title = VIEW_TITLES[view];
+        this._title.title = _(VIEW_TITLES[view]);
         this._title.subtitle = '';
         this._tagBar.visible = this._isWorkshopView;
         this._searchEntry.visible = view !== 'settings';
-        this._searchEntry.placeholder_text = this._isWorkshopView ? '搜尋工作坊' : '搜尋桌布';
+        this._searchEntry.placeholder_text = this._isWorkshopView ? _('Search the Workshop') : _('Search wallpapers');
         this._moreButton.visible = false;
 
         if (view === 'settings') {
             this._stack.visible_child_name = 'settings';
-            this._clearDetails('調整播放、音量與暫停時機。');
+            this._clearDetails(_('Adjust playback, volume and when to pause.'));
         } else if (this._isWorkshopView) {
             this._loadWorkshop(true);
         } else {
@@ -473,19 +492,19 @@ class Picker {
             // The active wallpaper comes first so it is visible right away.
             .sort((a, b) => (b.dir === current) - (a.dir === current));
 
-        this._title.subtitle = `${projects.length} 張`;
+        this._title.subtitle = format(_('%s wallpapers'), projects.length);
         if (projects.length === 0) {
             this._showStatus({
                 icon: 'preferences-desktop-wallpaper-symbolic',
-                title: '這裡還沒有桌布',
-                description: '在 Steam 安裝 Wallpaper Engine，然後到工作坊訂閱桌布；Steam 下載完成後會出現在這裡。',
-                action: ['安裝 Wallpaper Engine', () => Gio.AppInfo.launch_default_for_uri(STEAM_INSTALL_URI, null)],
+                title: _('No wallpapers here yet'),
+                description: _('Install Wallpaper Engine in Steam, then subscribe to wallpapers in the Workshop; they show up here once Steam has downloaded them.'),
+                action: [_('Install Wallpaper Engine'), () => Gio.AppInfo.launch_default_for_uri(STEAM_INSTALL_URI, null)],
             });
-            this._clearDetails('選一張桌布來查看詳細資訊。');
+            this._clearDetails(_('Select a wallpaper to see its details.'));
             return;
         }
         this._fillGrid(projects.map(project => () => {
-            const card = new WallpaperCard(project, TYPE_LABELS[project.type]);
+            const card = new WallpaperCard(project, _(TYPE_LABELS[project.type]));
             card.picture.set_paintable(loadPreviewTexture(project.preview));
             if (!isSceneSupported(project))
                 card.add_css_class('gpe-unsupported');
@@ -499,7 +518,7 @@ class Picker {
         if (reset) {
             this._workshopPage = 1;
             this._stack.visible_child_name = 'loading';
-            this._clearDetails('選一張桌布來查看詳細資訊。');
+            this._clearDetails(_('Select a wallpaper to see its details.'));
         }
         this._moreButton.sensitive = false;
         const request = {sort: this._view, query: this._query, tag: this._tag, page: this._workshopPage};
@@ -514,9 +533,9 @@ class Picker {
             console.error(e);
             this._showStatus({
                 icon: 'network-error-symbolic',
-                title: '無法載入工作坊',
+                title: _('Could not load the Workshop'),
                 description: e.message,
-                action: ['重試', () => this._loadWorkshop(true)],
+                action: [_('Retry'), () => this._loadWorkshop(true)],
             });
             return;
         }
@@ -525,11 +544,13 @@ class Picker {
             return;
 
         if (reset && results.length === 0) {
-            this._showStatus({icon: 'edit-find-symbolic', title: '找不到符合的桌布', description: '換個關鍵字或標籤試試。'});
+            this._showStatus({icon: 'edit-find-symbolic', title: _('No matching wallpapers'),
+                description: _('Try another keyword or tag.'),});
             return;
         }
         this._fillGrid(results.map(result => () => {
-            const card = new WallpaperCard(result, `${TYPE_LABELS[result.type]} · ${formatCount(result.subscriptions)} 人訂閱`);
+            const subscribers = format(_('%s subscribers'), formatCount(result.subscriptions));
+            const card = new WallpaperCard(result, `${_(TYPE_LABELS[result.type])} · ${subscribers}`);
             Workshop.fetchPreview(result.previewUrl, PREVIEW_SIZE * 2, this._cancellable)
                 .then(bytes => card.picture.set_paintable(textureFromBytes(bytes)))
                 .catch(e => {
@@ -578,11 +599,11 @@ class Picker {
         for (let card = this._flowBox.get_first_child(); card; card = card.get_next_sibling()) {
             const project = this._libraryProjectFor(card.item);
             if (project?.dir === current)
-                card.setBadge('● 使用中');
+                card.setBadge(`● ${_('In use')}`);
             else if (project && !isSceneSupported(project))
-                card.setBadge('無法顯示', true);
+                card.setBadge(_('Not supported'), true);
             else if (project && !card.item.dir)
-                card.setBadge('已訂閱');
+                card.setBadge(_('Subscribed'));
             else
                 card.setBadge(null);
         }
@@ -605,6 +626,7 @@ class Picker {
 
     _clearDetails(message) {
         this._selected = null;
+        this._refreshProperties = null;
         this._replaceDetails([new Adw.StatusPage({description: message, vexpand: true})]);
     }
 
@@ -616,6 +638,7 @@ class Picker {
 
     _showDetails(item) {
         this._selected = item;
+        this._refreshProperties = null;
         const project = this._libraryProjectFor(item);
         const current = this._settings.get_string('wallpaper');
 
@@ -652,46 +675,46 @@ class Picker {
         };
 
         if (item.dir)
-            addCaption(`${TYPE_LABELS[item.type]} · ${item.workshopId ? 'Steam 工作坊' : '本機桌布'}`);
+            addCaption(`${_(TYPE_LABELS[item.type])} · ${item.workshopId ? _('Steam Workshop') : _('Local wallpaper')}`);
         else
-            addCaption(`${'★'.repeat(item.stars)}${'☆'.repeat(5 - item.stars)}　${item.votes} 則評價`);
+            addCaption(`${'★'.repeat(item.stars)}${'☆'.repeat(5 - item.stars)}  ${format(_('%s ratings'), item.votes)}`);
 
         // The one primary action of the pane.
         if (project && !isSceneSupported(project)) {
-            widgets.push(pill('無法套用', [], null));
-            addCaption('這張場景使用 3D 透視攝影機，目前的場景渲染器還無法顯示。', ['warning']);
+            widgets.push(pill(_('Cannot be applied'), [], null));
+            addCaption(_('This scene uses a 3D perspective camera, which the scene renderer cannot show yet.'), ['warning']);
         } else if (project?.dir === current) {
-            widgets.push(pill('✓ 使用中', [], null));
-            widgets.push(pill('停止桌布', [], () => this._settings.set_string('wallpaper', '')));
+            widgets.push(pill(`✓ ${_('In use')}`, [], null));
+            widgets.push(pill(_('Stop wallpaper'), [], () => this._settings.set_string('wallpaper', '')));
         } else if (project) {
-            widgets.push(pill('套用桌布', ['suggested-action'], () => this._settings.set_string('wallpaper', project.dir)));
+            widgets.push(pill(_('Apply wallpaper'), ['suggested-action'], () => this._settings.set_string('wallpaper', project.dir)));
         } else {
-            widgets.push(pill(`在 Steam 訂閱（${formatSize(item.size)}）`, ['suggested-action'], () => {
+            widgets.push(pill(format(_('Subscribe in Steam (%s)'), formatSize(item.size)), ['suggested-action'], () => {
                 Gio.AppInfo.launch_default_for_uri(Workshop.steamPageUri(item.id), null);
-                this._toastOverlay.add_toast(new Adw.Toast({title: '已在 Steam 開啟這張桌布，按下「訂閱」後會自動下載。'}));
+                this._toastOverlay.add_toast(new Adw.Toast({title: _('Opened in Steam: press Subscribe there and it downloads automatically.')}));
             }));
-            addCaption('訂閱會透過你的 Steam 帳號進行；下載完成後自動出現在桌布庫。', ['dim-label', 'caption']);
+            addCaption(_('Subscribing goes through your Steam account; the wallpaper appears in the library once it is downloaded.'), ['dim-label', 'caption']);
         }
         const workshopId = item.dir ? item.workshopId : item.id;
         if (workshopId && project) {
-            widgets.push(pill('在 Steam 開啟工作坊頁面', [], () =>
+            widgets.push(pill(_('Open Workshop page in Steam'), [], () =>
                 Gio.AppInfo.launch_default_for_uri(Workshop.steamPageUri(workshopId), null)));
         }
 
         if (!item.dir) {
-            const info = new Adw.PreferencesGroup({title: '作品資訊'});
+            const info = new Adw.PreferencesGroup({title: _('About this wallpaper')});
             for (const [title, value] of [
-                ['訂閱', `${formatCount(item.subscriptions)} 人`],
-                ['收藏', `${formatCount(item.favorited)} 人`],
-                ['更新日期', GLib.DateTime.new_from_unix_local(item.updated).format('%Y 年 %-m 月 %-d 日')],
-                ['標籤', item.tags.join('、')],
+                [_('Subscribers'), formatCount(item.subscriptions)],
+                [_('Favorites'), formatCount(item.favorited)],
+                [_('Updated'), GLib.DateTime.new_from_unix_local(item.updated).format('%x')],
+                [_('Tags'), item.tags.join(', ')],
             ]) {
                 const row = new Adw.ActionRow({title, subtitle: GLib.markup_escape_text(value, -1), css_classes: ['property']});
                 info.add(row);
             }
             widgets.push(info);
             if (item.description) {
-                const description = new Adw.PreferencesGroup({title: '作者說明'});
+                const description = new Adw.PreferencesGroup({title: _('Description')});
                 description.add(new Gtk.Label({
                     label: item.description, xalign: 0, wrap: true, wrap_mode: Pango.WrapMode.WORD_CHAR, selectable: true,
                 }));
@@ -707,26 +730,44 @@ class Picker {
     }
 
     _createPropertiesGroup(project) {
-        const rows = Object.entries(project.properties)
+        const entries = Object.entries(project.properties)
             .sort(([, a], [, b]) => (a.order ?? 0) - (b.order ?? 0))
-            .map(([name, definition]) => this._createPropertyRow(project.dir, name, definition))
-            .filter(row => row !== null);
-        if (rows.length === 0)
+            .map(([name, definition]) => ({definition, row: this._createPropertyRow(project.dir, name, definition)}))
+            .filter(({row}) => row !== null);
+        if (entries.length === 0)
             return null;
 
-        const group = new Adw.PreferencesGroup({title: '自訂選項', description: `${rows.length} 項`});
-        rows.forEach((row, index) => {
-            row.visible = index < COLLAPSED_PROPERTIES;
-            group.add(row);
+        const group = new Adw.PreferencesGroup({title: _('Options')});
+        entries.forEach(({row}) => group.add(row));
+        const showAll = new Adw.ButtonRow();
+        group.add(showAll);
+
+        // An option is listed when its condition holds for the current values;
+        // of those, only the first few until "show all" is pressed.
+        let expanded = false;
+        const refresh = () => {
+            let overrides = {};
+            try {
+                overrides = JSON.parse(this._settings.get_string('user-properties'))[project.dir] ?? {};
+            } catch {
+                // Malformed overrides: fall back to the wallpaper's defaults.
+            }
+            const values = resolveProperties(project, overrides);
+            const applicable = entries.filter(({definition}) =>
+                !definition.condition || evaluateCondition(definition.condition, values));
+            for (const {row} of entries)
+                row.visible = false;
+            applicable.forEach(({row}, index) => (row.visible = expanded || index < COLLAPSED_PROPERTIES));
+            group.description = format(_('%s options'), applicable.length);
+            showAll.title = format(_('Show all %s options'), applicable.length);
+            showAll.visible = !expanded && applicable.length > COLLAPSED_PROPERTIES;
+        };
+        showAll.connect('activated', () => {
+            expanded = true;
+            refresh();
         });
-        if (rows.length > COLLAPSED_PROPERTIES) {
-            const showAll = new Adw.ButtonRow({title: `顯示全部 ${rows.length} 項`});
-            showAll.connect('activated', () => {
-                rows.forEach(row => (row.visible = true));
-                showAll.visible = false;
-            });
-            group.add(showAll);
-        }
+        this._refreshProperties = refresh;
+        refresh();
         return group;
     }
 
@@ -824,14 +865,14 @@ class Picker {
         const dir = this._settings.get_string('wallpaper');
         const project = dir ? loadProject(dir) : null;
         if (!project) {
-            this._nowPlaying.append(new Gtk.Label({label: '未套用動態桌布', xalign: 0, css_classes: ['dim-label']}));
+            this._nowPlaying.append(new Gtk.Label({label: _('No live wallpaper applied'), xalign: 0, css_classes: ['dim-label']}));
             return;
         }
         const paused = this._settings.get_boolean('paused');
         const muted = this._settings.get_boolean('muted');
 
         this._nowPlaying.append(new Gtk.Label({
-            label: paused ? '已暫停' : '播放中', xalign: 0, css_classes: ['caption', paused ? 'warning' : 'success'],
+            label: paused ? _('Paused') : _('Playing'), xalign: 0, css_classes: ['caption', paused ? 'warning' : 'success'],
         }));
         const info = new Gtk.Box({spacing: 10});
         const thumbnail = new Gtk.Picture({
@@ -849,11 +890,11 @@ class Picker {
             button.connect('clicked', onClicked);
             controls.append(button);
         };
-        control(paused ? 'media-playback-start-symbolic' : 'media-playback-pause-symbolic', paused ? '繼續播放' : '暫停',
+        control(paused ? 'media-playback-start-symbolic' : 'media-playback-pause-symbolic', paused ? _('Resume') : _('Pause'),
             () => this._settings.set_boolean('paused', !paused));
-        control(muted ? 'audio-volume-muted-symbolic' : 'audio-volume-high-symbolic', muted ? '取消靜音' : '靜音',
+        control(muted ? 'audio-volume-muted-symbolic' : 'audio-volume-high-symbolic', muted ? _('Unmute') : _('Mute'),
             () => this._settings.set_boolean('muted', !muted));
-        control('media-playback-stop-symbolic', '停止桌布', () => this._settings.set_string('wallpaper', ''));
+        control('media-playback-stop-symbolic', _('Stop wallpaper'), () => this._settings.set_string('wallpaper', ''));
         this._nowPlaying.append(controls);
     }
 
@@ -863,32 +904,45 @@ class Picker {
         const settings = this._settings;
         const page = new Adw.PreferencesPage();
 
-        const playback = new Adw.PreferencesGroup({title: '播放'});
+        const playback = new Adw.PreferencesGroup({title: _('Playback')});
         page.add(playback);
 
-        const mutedRow = new Adw.SwitchRow({title: '桌布靜音'});
+        const mutedRow = new Adw.SwitchRow({title: _('Mute wallpaper audio')});
         settings.bind('muted', mutedRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         playback.add(mutedRow);
 
         const volumeRow = new Adw.SpinRow({
-            title: '音量',
+            title: _('Volume'),
             adjustment: new Gtk.Adjustment({lower: 0, upper: 100, step_increment: 5}),
         });
         settings.bind('volume', volumeRow, 'value', Gio.SettingsBindFlags.DEFAULT);
         playback.add(volumeRow);
 
-        playback.add(createChoiceRow(settings, 'fit', '縮放方式', FIT_LABELS));
-        playback.add(createChoiceRow(settings, 'pause-mode', '自動暫停', PAUSE_LABELS));
+        playback.add(createChoiceRow(settings, 'fit', _('Scaling'), FIT_LABELS));
+        playback.add(createChoiceRow(settings, 'pause-mode', _('Pause automatically'), PAUSE_LABELS));
+
+        const lockScreenRow = new Adw.SwitchRow({
+            title: _('Show on the lock screen'),
+            subtitle: _('When off, playback pauses while the screen is locked'),
+        });
+        settings.bind('show-on-lock-screen', lockScreenRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        playback.add(lockScreenRow);
+
+        const appearance = new Adw.PreferencesGroup({title: _('Interface')});
+        page.add(appearance);
+        const languageRow = createChoiceRow(settings, 'language', _('Language'), LANGUAGE_LABELS);
+        languageRow.subtitle = _('Takes effect the next time this window is opened');
+        appearance.add(languageRow);
 
         const folders = new Adw.PreferencesGroup({
-            title: '其他桌布資料夾',
-            description: '資料夾內每個子資料夾是一張桌布（含 project.json）。Steam 收藏庫會自動找到，不必加入。',
+            title: _('Other wallpaper folders'),
+            description: _('Each sub-folder is one wallpaper (with a project.json). Steam libraries are found automatically.'),
         });
         page.add(folders);
 
-        const addButton = new Gtk.Button({icon_name: 'list-add-symbolic', css_classes: ['flat'], valign: Gtk.Align.CENTER, tooltip_text: '加入資料夾'});
+        const addButton = new Gtk.Button({icon_name: 'list-add-symbolic', css_classes: ['flat'], valign: Gtk.Align.CENTER, tooltip_text: _('Add folder')});
         addButton.connect('clicked', () => {
-            new Gtk.FileDialog({title: '選擇桌布資料夾'}).select_folder(this._window, null, (dialog, result) => {
+            new Gtk.FileDialog({title: _('Choose a wallpaper folder')}).select_folder(this._window, null, (dialog, result) => {
                 let folder;
                 try {
                     folder = dialog.select_folder_finish(result);
@@ -909,7 +963,7 @@ class Picker {
             folderRows.forEach(row => folders.remove(row));
             folderRows = settings.get_strv('extra-dirs').map(dir => {
                 const row = new Adw.ActionRow({title: GLib.markup_escape_text(dir, -1)});
-                const removeButton = new Gtk.Button({icon_name: 'user-trash-symbolic', css_classes: ['flat'], valign: Gtk.Align.CENTER, tooltip_text: '移除'});
+                const removeButton = new Gtk.Button({icon_name: 'user-trash-symbolic', css_classes: ['flat'], valign: Gtk.Align.CENTER, tooltip_text: _('Remove')});
                 removeButton.connect('clicked', () =>
                     settings.set_strv('extra-dirs', settings.get_strv('extra-dirs').filter(other => other !== dir)));
                 row.add_suffix(removeButton);
@@ -925,9 +979,15 @@ class Picker {
 
 export default class PaperEnginePreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
+        const settings = this.getSettings();
+        // gettext consults LANGUAGE on every lookup, so this has to happen before any text is built.
+        const language = settings.get_string('language');
+        if (language)
+            GLib.setenv('LANGUAGE', language, true);
+
         window.set_title('Paper Engine');
         window.set_default_size(1280, 820);
         window.set_search_enabled(false);
-        new Picker(window, this.getSettings());
+        new Picker(window, settings);
     }
 }

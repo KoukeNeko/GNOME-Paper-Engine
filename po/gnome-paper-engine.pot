@@ -1,0 +1,422 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the gnome-paper-engine package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: gnome-paper-engine\n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: extension/prefs.js:37 extension/prefs.js:51
+msgid "Scene"
+msgstr ""
+
+#: extension/prefs.js:37 extension/prefs.js:52
+msgid "Video"
+msgstr ""
+
+#: extension/prefs.js:37 extension/prefs.js:53
+msgid "Web"
+msgstr ""
+
+#: extension/prefs.js:38
+msgid "Fill (crop)"
+msgstr ""
+
+#: extension/prefs.js:38
+msgid "Fit (letterbox)"
+msgstr ""
+
+#: extension/prefs.js:38
+msgid "Stretch"
+msgstr ""
+
+#: extension/prefs.js:40
+msgid "System default"
+msgstr ""
+
+#: extension/prefs.js:42
+msgid "When a window is maximized or fullscreen"
+msgstr ""
+
+#: extension/prefs.js:43
+msgid "When a window is fullscreen"
+msgstr ""
+
+#: extension/prefs.js:44
+msgid "Never"
+msgstr ""
+
+#: extension/prefs.js:50
+msgid "All"
+msgstr ""
+
+#: extension/prefs.js:56
+msgid "Trending this week"
+msgstr ""
+
+#: extension/prefs.js:57
+msgid "Most recent"
+msgstr ""
+
+#: extension/prefs.js:58
+msgid "Most subscribed"
+msgstr ""
+
+#: extension/prefs.js:60 extension/prefs.js:606
+msgid "Subscribed"
+msgstr ""
+
+#: extension/prefs.js:61 extension/prefs.js:66
+msgid "Playback and performance"
+msgstr ""
+
+#: extension/prefs.js:63
+msgid "All wallpapers"
+msgstr ""
+
+#: extension/prefs.js:63
+msgid "Scene wallpapers"
+msgstr ""
+
+#: extension/prefs.js:63
+msgid "Video wallpapers"
+msgstr ""
+
+#: extension/prefs.js:64
+msgid "Web wallpapers"
+msgstr ""
+
+#: extension/prefs.js:64
+msgid "Subscribed wallpapers"
+msgstr ""
+
+#: extension/prefs.js:65
+msgid "Workshop · Trending this week"
+msgstr ""
+
+#: extension/prefs.js:65
+msgid "Workshop · Most recent"
+msgstr ""
+
+#: extension/prefs.js:66
+msgid "Workshop · Most subscribed"
+msgstr ""
+
+#: extension/prefs.js:70
+msgid "Anime"
+msgstr ""
+
+#: extension/prefs.js:70
+msgid "Game"
+msgstr ""
+
+#: extension/prefs.js:70
+msgid "Landscape"
+msgstr ""
+
+#: extension/prefs.js:71
+msgid "Cyberpunk"
+msgstr ""
+
+#: extension/prefs.js:71
+msgid "Animal"
+msgstr ""
+
+#: extension/prefs.js:104
+msgid "Scheme color"
+msgstr ""
+
+#: extension/prefs.js:292
+msgid "Library"
+msgstr ""
+
+#: extension/prefs.js:293 extension/prefs.js:678
+msgid "Steam Workshop"
+msgstr ""
+
+#: extension/prefs.js:294
+msgid "Preferences"
+msgstr ""
+
+#: extension/prefs.js:309 extension/prefs.js:436
+msgid "Search wallpapers"
+msgstr ""
+
+#: extension/prefs.js:311
+msgid "Refresh"
+msgstr ""
+
+#: extension/prefs.js:349
+msgid "Scene wallpapers need the scene renderer: run gnome-paper-engine-setup-scene in a terminal once (setup-scene-renderer.sh in a source checkout)."
+msgstr ""
+
+#: extension/prefs.js:377
+msgid "Load more"
+msgstr ""
+
+#: extension/prefs.js:412
+msgid "Details"
+msgstr ""
+
+#: extension/prefs.js:436
+msgid "Search the Workshop"
+msgstr ""
+
+#: extension/prefs.js:441
+msgid "Adjust playback, volume and when to pause."
+msgstr ""
+
+#: extension/prefs.js:495
+#, javascript-format
+msgid "%s wallpapers"
+msgstr ""
+
+#: extension/prefs.js:499
+msgid "No wallpapers here yet"
+msgstr ""
+
+#: extension/prefs.js:500
+msgid "Install Wallpaper Engine in Steam, then subscribe to wallpapers in the Workshop; they show up here once Steam has downloaded them."
+msgstr ""
+
+#: extension/prefs.js:501
+msgid "Install Wallpaper Engine"
+msgstr ""
+
+#: extension/prefs.js:503 extension/prefs.js:521
+msgid "Select a wallpaper to see its details."
+msgstr ""
+
+#: extension/prefs.js:536
+msgid "Could not load the Workshop"
+msgstr ""
+
+#: extension/prefs.js:538
+msgid "Retry"
+msgstr ""
+
+#: extension/prefs.js:547
+msgid "No matching wallpapers"
+msgstr ""
+
+#: extension/prefs.js:548
+msgid "Try another keyword or tag."
+msgstr ""
+
+#: extension/prefs.js:552
+#, javascript-format
+msgid "%s subscribers"
+msgstr ""
+
+#: extension/prefs.js:602 extension/prefs.js:687
+msgid "In use"
+msgstr ""
+
+#: extension/prefs.js:604
+msgid "Not supported"
+msgstr ""
+
+#: extension/prefs.js:678
+msgid "Local wallpaper"
+msgstr ""
+
+#: extension/prefs.js:680
+#, javascript-format
+msgid "%s ratings"
+msgstr ""
+
+#: extension/prefs.js:684
+msgid "Cannot be applied"
+msgstr ""
+
+#: extension/prefs.js:685
+msgid "This scene uses a 3D perspective camera, which the scene renderer cannot show yet."
+msgstr ""
+
+#: extension/prefs.js:688 extension/prefs.js:897
+msgid "Stop wallpaper"
+msgstr ""
+
+#: extension/prefs.js:690
+msgid "Apply wallpaper"
+msgstr ""
+
+#: extension/prefs.js:692
+#, javascript-format
+msgid "Subscribe in Steam (%s)"
+msgstr ""
+
+#: extension/prefs.js:694
+msgid "Opened in Steam: press Subscribe there and it downloads automatically."
+msgstr ""
+
+#: extension/prefs.js:696
+msgid "Subscribing goes through your Steam account; the wallpaper appears in the library once it is downloaded."
+msgstr ""
+
+#: extension/prefs.js:700
+msgid "Open Workshop page in Steam"
+msgstr ""
+
+#: extension/prefs.js:705
+msgid "About this wallpaper"
+msgstr ""
+
+#: extension/prefs.js:707
+msgid "Subscribers"
+msgstr ""
+
+#: extension/prefs.js:708
+msgid "Favorites"
+msgstr ""
+
+#: extension/prefs.js:709
+msgid "Updated"
+msgstr ""
+
+#: extension/prefs.js:710
+msgid "Tags"
+msgstr ""
+
+#: extension/prefs.js:717
+msgid "Description"
+msgstr ""
+
+#: extension/prefs.js:740
+msgid "Options"
+msgstr ""
+
+#: extension/prefs.js:761
+#, javascript-format
+msgid "%s options"
+msgstr ""
+
+#: extension/prefs.js:762
+#, javascript-format
+msgid "Show all %s options"
+msgstr ""
+
+#: extension/prefs.js:868
+msgid "No live wallpaper applied"
+msgstr ""
+
+#: extension/prefs.js:875
+msgid "Paused"
+msgstr ""
+
+#: extension/prefs.js:875
+msgid "Playing"
+msgstr ""
+
+#: extension/prefs.js:893
+msgid "Resume"
+msgstr ""
+
+#: extension/prefs.js:893
+msgid "Pause"
+msgstr ""
+
+#: extension/prefs.js:895
+msgid "Unmute"
+msgstr ""
+
+#: extension/prefs.js:895
+msgid "Mute"
+msgstr ""
+
+#: extension/prefs.js:907
+msgid "Playback"
+msgstr ""
+
+#: extension/prefs.js:910
+msgid "Mute wallpaper audio"
+msgstr ""
+
+#: extension/prefs.js:915
+msgid "Volume"
+msgstr ""
+
+#: extension/prefs.js:921
+msgid "Scaling"
+msgstr ""
+
+#: extension/prefs.js:922
+msgid "Pause automatically"
+msgstr ""
+
+#: extension/prefs.js:925
+msgid "Show on the lock screen"
+msgstr ""
+
+#: extension/prefs.js:926
+msgid "When off, playback pauses while the screen is locked"
+msgstr ""
+
+#: extension/prefs.js:931
+msgid "Interface"
+msgstr ""
+
+#: extension/prefs.js:933
+msgid "Language"
+msgstr ""
+
+#: extension/prefs.js:934
+msgid "Takes effect the next time this window is opened"
+msgstr ""
+
+#: extension/prefs.js:938
+msgid "Other wallpaper folders"
+msgstr ""
+
+#: extension/prefs.js:939
+msgid "Each sub-folder is one wallpaper (with a project.json). Steam libraries are found automatically."
+msgstr ""
+
+#: extension/prefs.js:943
+msgid "Add folder"
+msgstr ""
+
+#: extension/prefs.js:945
+msgid "Choose a wallpaper folder"
+msgstr ""
+
+#: extension/prefs.js:966
+msgid "Remove"
+msgstr ""
+
+#: extension/extension.js:135
+#, javascript-format
+msgid "No wallpaper project found in %s"
+msgstr ""
+
+#: extension/extension.js:153
+#, javascript-format
+msgid "“%s” is a “%s” wallpaper, which is not supported"
+msgstr ""
+
+#: extension/extension.js:157
+#, javascript-format
+msgid "Could not start the wallpaper renderer: %s"
+msgstr ""
+
+#: extension/extension.js:189
+msgid "Scene wallpapers need the scene renderer. Run gnome-paper-engine-setup-scene (setup-scene-renderer.sh in a source checkout) to install it."
+msgstr ""
+
+#: extension/extension.js:194
+msgid "Scene wallpapers need Wallpaper Engine itself to be installed in Steam (for its assets folder)."
+msgstr ""
+
+#: extension/extension.js:238
+msgid "The wallpaper renderer keeps crashing; giving up on this wallpaper."
+msgstr ""

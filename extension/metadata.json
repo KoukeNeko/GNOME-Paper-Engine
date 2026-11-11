@@ -3,7 +3,9 @@
   "name": "Paper Engine",
   "description": "Use your Steam Wallpaper Engine wallpapers as live desktop backgrounds on GNOME.",
   "shell-version": ["51"],
+  "session-modes": ["user", "unlock-dialog"],
   "version-name": "0.1.0",
+  "gettext-domain": "gnome-paper-engine",
   "settings-schema": "org.gnome.shell.extensions.gnome-paper-engine",
   "url": "https://github.com/KoukeNeko/GNOME-Paper-Engine"
 }

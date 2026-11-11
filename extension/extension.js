@@ -5,12 +5,13 @@
 // Desktop Icons window). The window-type approach follows the Desktop Icons NG
 // extension that ships with Ubuntu.
 
+import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {loadProject, resolveProperties, findSceneRenderer, findAssetsDir} from './library.js';
 
@@ -26,6 +27,8 @@ const HEALTHY_RUNTIME_MS = 30000;
 const PAUSE_CHECK_DELAY_MS = 250;
 // How often the pointer position is forwarded to the wallpaper (for parallax and hover effects).
 const POINTER_INTERVAL_MS = 33;
+const LOCK_SCREEN_CHECK_MS = 500;
+const LOCK_SCREEN_BRIGHTNESS = -0.2;
 
 const SCENE_SCALING = {cover: 'fill', contain: 'fit', fill: 'stretch'};
 
@@ -41,12 +44,16 @@ export default class PaperEngineExtension extends Extension {
         this._renderers = [];
         this._pointerId = 0;
         this._lastPointer = '';
+        this._buttonWasDown = false;
+        this._clicking = false;
         // Meta.Window → {monitorIndex, signalIds}
         this._adoptedWindows = new Map();
         this._failures = 0;
         this._paused = false;
         this._relaunchId = 0;
         this._pauseCheckId = 0;
+        this._lockScreenId = 0;
+        this._lockScreenClones = new Set();
         this._signals = [];
 
         const connect = (object, signal, callback) =>
@@ -54,6 +61,7 @@ export default class PaperEngineExtension extends Extension {
 
         connect(this._settings, 'changed', (_settings, key) => this._onSettingChanged(key));
         connect(Main.layoutManager, 'monitors-changed', () => this._launch());
+        connect(Main.sessionMode, 'updated', () => this._onSessionModeChanged());
         connect(global.display, 'window-created', (_display, window) => this._adoptWindow(window));
         this._signals.push([global.window_manager, global.window_manager.connect_after(
             'map', (_wm, actor) => this._placeWindow(actor.meta_window))]);
@@ -79,9 +87,14 @@ export default class PaperEngineExtension extends Extension {
             GLib.source_remove(this._pauseCheckId);
         if (this._pointerId)
             GLib.source_remove(this._pointerId);
+        if (this._lockScreenId)
+            GLib.source_remove(this._lockScreenId);
+        this._lockScreenId = 0;
         this._pointerId = 0;
         this._relaunchId = 0;
         this._pauseCheckId = 0;
+        this._lockScreenClones.forEach(clone => clone.destroy());
+        this._lockScreenClones.clear();
         this._stop();
         this._settings = null;
     }
@@ -92,6 +105,8 @@ export default class PaperEngineExtension extends Extension {
             this._sendCommand(`mute ${this._settings.get_boolean('muted') ? 1 : 0}`);
         } else if (key === 'volume' && commandable) {
             this._sendCommand(`volume ${this._settings.get_int('volume')}`);
+        } else if (key === 'show-on-lock-screen') {
+            this._onSessionModeChanged();
         } else if (key === 'pause-mode' || key === 'paused') {
             this._queuePauseCheck();
         } else if (key !== 'extra-dirs') {
@@ -117,7 +132,7 @@ export default class PaperEngineExtension extends Extension {
             return;
         const project = loadProject(dir);
         if (!project) {
-            this._notify(`No wallpaper project found in ${dir}`);
+            this._notify(_('No wallpaper project found in %s').replace('%s', dir));
             return;
         }
 
@@ -135,10 +150,11 @@ export default class PaperEngineExtension extends Extension {
             else if (project.type === 'scene')
                 this._spawnSceneRenderers(project, properties);
             else
-                this._notify(`“${project.title}” is a “${project.type}” wallpaper, which is not supported`);
+                this._notify(_('“%s” is a “%s” wallpaper, which is not supported')
+                    .replace('%s', project.title).replace('%s', project.type));
         } catch (e) {
             console.error(e);
-            this._notify(`Could not start the wallpaper renderer: ${e.message}`);
+            this._notify(_('Could not start the wallpaper renderer: %s').replace('%s', e.message));
         }
         this._queuePauseCheck();
         if (this._renderers.length > 0 && !this._pointerId) {
@@ -170,12 +186,12 @@ export default class PaperEngineExtension extends Extension {
     _spawnSceneRenderers(project, properties) {
         const binary = findSceneRenderer(this._settings.get_string('scene-renderer'));
         if (!binary) {
-            this._notify('Scene wallpapers need linux-wallpaperengine. Run gnome-paper-engine-setup-scene (setup-scene-renderer.sh in a source checkout) to install it.');
+            this._notify(_('Scene wallpapers need the scene renderer. Run gnome-paper-engine-setup-scene (setup-scene-renderer.sh in a source checkout) to install it.'));
             return;
         }
         const assetsDir = findAssetsDir();
         if (!assetsDir) {
-            this._notify('Scene wallpapers need Wallpaper Engine itself to be installed in Steam (for its assets folder).');
+            this._notify(_('Scene wallpapers need Wallpaper Engine itself to be installed in Steam (for its assets folder).'));
             return;
         }
 
@@ -219,7 +235,7 @@ export default class PaperEngineExtension extends Extension {
             this._failures = runtimeMs > HEALTHY_RUNTIME_MS ? 1 : this._failures + 1;
             this._stop();
             if (this._failures >= MAX_CONSECUTIVE_FAILURES) {
-                this._notify('The wallpaper renderer keeps crashing; giving up on this wallpaper.');
+                this._notify(_('The wallpaper renderer keeps crashing; giving up on this wallpaper.'));
                 return;
             }
             console.warn(`${this.uuid}: renderer exited unexpectedly, relaunching`);
@@ -302,9 +318,66 @@ export default class PaperEngineExtension extends Extension {
             return;
         this._pauseCheckId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PAUSE_CHECK_DELAY_MS, () => {
             this._pauseCheckId = 0;
-            this._setPaused(this._settings.get_boolean('paused') || this._isDesktopCovered());
+            this._setPaused(this._shouldPause());
             return GLib.SOURCE_REMOVE;
         });
+    }
+
+    _shouldPause() {
+        if (this._settings.get_boolean('paused'))
+            return true;
+        // Behind the lock screen the windows of the session don't cover anything.
+        if (Main.sessionMode.isLocked)
+            return !this._settings.get_boolean('show-on-lock-screen');
+        return this._isDesktopCovered();
+    }
+
+    // The lock screen hides every window, so the wallpaper is shown there as
+    // clones of its windows, placed over the lock screen's own backgrounds.
+    // (Not inside them: their blur effect caches its input and would freeze
+    // the wallpaper on its first frame.)
+    _onSessionModeChanged() {
+        this._queuePauseCheck();
+        this._syncLockScreenClones();
+    }
+
+    _syncLockScreenClones() {
+        if (this._lockScreenId) {
+            GLib.source_remove(this._lockScreenId);
+            this._lockScreenId = 0;
+        }
+        this._lockScreenClones.forEach(clone => clone.destroy());
+        this._lockScreenClones.clear();
+        if (!Main.sessionMode.isLocked || !this._settings.get_boolean('show-on-lock-screen'))
+            return;
+
+        // The lock screen builds its backgrounds some time after the session
+        // mode changes, and rebuilds them when monitors change: keep checking
+        // while locked that every wallpaper window has its clone in place.
+        const ensureClones = () => {
+            const backgroundGroup = Main.screenShield?._dialog?._backgroundGroup;
+            for (const [window, {monitorIndex}] of this._adoptedWindows) {
+                const monitor = Main.layoutManager.monitors[monitorIndex];
+                const actor = window.get_compositor_private();
+                if (!backgroundGroup || !monitor || !actor)
+                    continue;
+                if ([...this._lockScreenClones].some(clone => clone.source === actor && clone.get_parent() === backgroundGroup))
+                    continue;
+                const clone = new Clutter.Clone({
+                    source: actor, x: monitor.x, y: monitor.y, width: monitor.width, height: monitor.height,
+                });
+                // Dimmed a little so the clock stays readable on bright wallpapers.
+                const dim = new Clutter.BrightnessContrastEffect();
+                dim.set_brightness(LOCK_SCREEN_BRIGHTNESS);
+                clone.add_effect(dim);
+                clone.connect('destroy', () => this._lockScreenClones.delete(clone));
+                this._lockScreenClones.add(clone);
+                backgroundGroup.add_child(clone);
+            }
+            return GLib.SOURCE_CONTINUE;
+        };
+        ensureClones();
+        this._lockScreenId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, LOCK_SCREEN_CHECK_MS, ensureClones);
     }
 
     // True when, on every monitor, a fullscreen (or maximized) window hides the wallpaper.
@@ -356,21 +429,35 @@ export default class PaperEngineExtension extends Extension {
     _forwardPointer() {
         if (this._paused)
             return;
-        const [x, y] = global.get_pointer();
+        const [x, y, modifiers] = global.get_pointer();
         const monitor = Main.layoutManager.monitors.find(m =>
             x >= m.x && x < m.x + m.width && y >= m.y && y < m.y + m.height);
         if (!monitor)
             return;
-        const position = `${((x - monitor.x) / monitor.width).toFixed(4)} ${((y - monitor.y) / monitor.height).toFixed(4)}`;
+
+        // A press counts as a click on the wallpaper when it starts on the
+        // desktop rather than on some window, and lasts until the release.
+        const buttonDown = Boolean(modifiers & Clutter.ModifierType.BUTTON1_MASK);
+        if (!buttonDown)
+            this._clicking = false;
+        else if (!this._buttonWasDown)
+            this._clicking = this._isDesktopAt(x, y);
+        this._buttonWasDown = buttonDown;
+
+        const position = `${((x - monitor.x) / monitor.width).toFixed(4)} ${((y - monitor.y) / monitor.height).toFixed(4)} ${this._clicking ? 1 : 0}`;
         const pointer = `${monitor.index} ${position}`;
         if (pointer === this._lastPointer)
             return;
+        // Kept only if every renderer got it, so a press or release that had
+        // to be skipped below is sent again on the next tick.
         this._lastPointer = pointer;
         for (const renderer of this._renderers) {
-            // Dropping an update is fine, blocking the compositor on a
+            // Skipping an update is fine, blocking the compositor on a
             // renderer that stopped reading is not.
-            if (renderer.stdin.has_pending())
+            if (renderer.stdin.has_pending()) {
+                this._lastPointer = null;
                 continue;
+            }
             let line;
             if (renderer.builtin)
                 line = `mouse ${pointer}`;
@@ -387,6 +474,15 @@ export default class PaperEngineExtension extends Extension {
                     }
                 });
         }
+    }
+
+    // True when the topmost thing at this position is a desktop-type window:
+    // the wallpaper itself or the Desktop Icons window above it.
+    _isDesktopAt(x, y) {
+        let actor = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
+        while (actor && !(actor instanceof Meta.WindowActor))
+            actor = actor.get_parent();
+        return actor?.meta_window?.window_type === Meta.WindowType.DESKTOP;
     }
 
     _notify(message) {

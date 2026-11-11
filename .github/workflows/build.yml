@@ -18,6 +18,7 @@ jobs:
         run: |
           bash -n install.sh build-deb.sh setup-scene-renderer.sh
           glib-compile-schemas --strict --dry-run extension/schemas
+          for catalogue in po/*.po; do msgfmt --check -o /dev/null "$catalogue"; done
 
       - name: Build the .deb
         env:

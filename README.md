@@ -93,7 +93,9 @@ crashing and stops retrying.
 
 ## Using it
 
-The picker has three panes (its interface is in Traditional Chinese):
+The picker has three panes. It is available in English and Traditional
+Chinese; it follows the system language unless you pick one under
+*Playback and performance → Language*.
 
 - **Sidebar** – your library by type, the Steam Workshop (trending, newest,
   most subscribed, and what you are subscribed to), playback settings, and the
@@ -108,8 +110,13 @@ the picker opens the wallpaper's page in the Steam client, and it appears in
 the library once Steam has downloaded it.
 
 By default playback pauses while every monitor is covered by a maximized or
-fullscreen window. The same wallpaper is shown on every monitor. The wallpaper
-is not shown on the lock screen or behind the Activities overview.
+fullscreen window. The same wallpaper is shown on every monitor.
+
+The wallpaper never receives input itself, so the extension forwards the
+pointer position and left clicks that start on the desktop; wallpapers react
+to those as far as their renderer supports it. Behind the lock screen the
+wallpaper keeps playing, slightly dimmed (this can be turned off). It is not
+shown behind the Activities overview.
 
 ## How it works
 
@@ -123,6 +130,8 @@ Desktop Icons extension uses, and the wallpaper sits below its icons.
 - `extension/library.js` – finds Steam libraries and reads `project.json`.
 - `extension/prefs.js` – the picker and settings window.
 - `extension/workshop.js` – reads the Steam Workshop browse page.
+- `extension/conditions.js` – evaluates when a wallpaper option is shown.
+- `po/` – translations; `zh_TW.po` is the only one so far.
 
 ## Uninstall
 

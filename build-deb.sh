@@ -19,7 +19,7 @@ PACKAGE=gnome-paper-engine
 UUID=gnome-paper-engine@koukeneko.github.io
 SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-for tool in dpkg-deb glib-compile-schemas python3; do
+for tool in dpkg-deb glib-compile-schemas msgfmt python3; do
     command -v "$tool" >/dev/null || { echo "Missing required tool: $tool" >&2; exit 1; }
 done
 
@@ -47,6 +47,11 @@ mkdir -p "$extension_dir/schemas" "$data_dir/patches" "$doc_dir" \
 install -m 644 "$SOURCE_DIR"/extension/*.js "$SOURCE_DIR/extension/metadata.json" "$extension_dir"
 install -m 644 "$SOURCE_DIR"/extension/schemas/*.gschema.xml "$extension_dir/schemas"
 glib-compile-schemas --strict "$extension_dir/schemas"
+for catalogue in "$SOURCE_DIR"/po/*.po; do
+    language="$(basename "$catalogue" .po)"
+    mkdir -p "$extension_dir/locale/$language/LC_MESSAGES"
+    msgfmt --check -o "$extension_dir/locale/$language/LC_MESSAGES/$PACKAGE.mo" "$catalogue"
+done
 
 install -m 644 "$SOURCE_DIR/icons/$PACKAGE.svg" "$ROOT/usr/share/icons/hicolor/scalable/apps"
 install -m 755 "$SOURCE_DIR/setup-scene-renderer.sh" "$data_dir"

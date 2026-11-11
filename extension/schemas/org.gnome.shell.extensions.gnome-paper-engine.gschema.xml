@@ -31,6 +31,14 @@
       <default>'maximized'</default>
       <summary>Pause playback while every monitor is covered by a fullscreen (or maximized) window</summary>
     </key>
+    <key name="show-on-lock-screen" type="b">
+      <default>true</default>
+      <summary>Keep the wallpaper playing behind the lock screen</summary>
+    </key>
+    <key name="language" type="s">
+      <default>''</default>
+      <summary>Language of the picker window; empty to follow the system</summary>
+    </key>
     <key name="paused" type="b">
       <default>false</default>
       <summary>Playback is paused by the user</summary>

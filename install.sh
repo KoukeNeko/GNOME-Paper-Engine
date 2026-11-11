@@ -15,6 +15,11 @@ rm -rf "$EXTENSION_DIR"
 mkdir -p "$EXTENSION_DIR" "$DATA_DIR/applications" "$DATA_DIR/icons/hicolor/scalable/apps"
 cp -r "$SOURCE_DIR/extension/." "$EXTENSION_DIR"
 glib-compile-schemas --strict "$EXTENSION_DIR/schemas"
+for catalogue in "$SOURCE_DIR"/po/*.po; do
+    language="$(basename "$catalogue" .po)"
+    mkdir -p "$EXTENSION_DIR/locale/$language/LC_MESSAGES"
+    msgfmt --check -o "$EXTENSION_DIR/locale/$language/LC_MESSAGES/gnome-paper-engine.mo" "$catalogue"
+done
 cp "$SOURCE_DIR/icons/gnome-paper-engine.svg" "$DATA_DIR/icons/hicolor/scalable/apps/"
 
 cat > "$DATA_DIR/applications/gnome-paper-engine.desktop" <<EOF
