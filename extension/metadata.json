@@ -1,9 +1,9 @@
 {
-  "uuid": "gnome-wallpaper-engine@doeshing",
-  "name": "Wallpaper Engine",
+  "uuid": "gnome-paper-engine@koukeneko.github.io",
+  "name": "Paper Engine",
   "description": "Use your Steam Wallpaper Engine wallpapers as live desktop backgrounds on GNOME.",
   "shell-version": ["51"],
   "version-name": "0.1.0",
-  "settings-schema": "org.gnome.shell.extensions.gnome-wallpaper-engine",
-  "url": ""
+  "settings-schema": "org.gnome.shell.extensions.gnome-paper-engine",
+  "url": "https://github.com/KoukeNeko/GNOME-Paper-Engine"
 }

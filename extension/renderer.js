@@ -16,7 +16,7 @@ import Gtk from 'gi://Gtk?version=3.0';
 import WebKit from 'gi://WebKit2?version=4.1';
 
 // Must match RENDERER_TITLE_PREFIX in extension.js.
-const TITLE_PREFIX = 'gnome-wallpaper-engine-renderer-';
+const TITLE_PREFIX = 'gnome-paper-engine-renderer-';
 
 const FIT_TO_OBJECT_FIT = {cover: 'cover', contain: 'contain', fill: 'fill'};
 

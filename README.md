@@ -1,4 +1,4 @@
-# Wallpaper Engine for GNOME
+# GNOME Paper Engine
 
 Use the wallpapers from your Steam copy of [Wallpaper Engine](https://store.steampowered.com/app/431960/Wallpaper_Engine/)
 as live desktop backgrounds on Ubuntu / GNOME (Wayland).
@@ -30,19 +30,19 @@ Download the latest development build from the
 or build it yourself with `./build-deb.sh` (it ends up in `dist/`), then:
 
 ```bash
-sudo apt install ./gnome-wallpaper-engine_*_all.deb
+sudo apt install ./gnome-paper-engine_*_all.deb
 ```
 
 Log out and back in, then turn the extension on once:
 
 ```bash
-gnome-extensions enable gnome-wallpaper-engine@doeshing
+gnome-extensions enable gnome-paper-engine@koukeneko.github.io
 ```
 
-Open **Wallpaper Engine** from the app grid. To remove it again:
+Open **Paper Engine** from the app grid. To remove it again:
 
 ```bash
-sudo apt remove gnome-wallpaper-engine
+sudo apt remove gnome-paper-engine
 ```
 
 ### From the source folder, without root
@@ -52,7 +52,7 @@ sudo apt remove gnome-wallpaper-engine
 ```
 
 Log out and back in once (a running GNOME Shell only discovers new extensions
-at login), then open **Wallpaper Engine** from the app grid. A copy installed
+at login), then open **Paper Engine** from the app grid. A copy installed
 this way takes precedence over the package, so use one or the other.
 
 ### Getting wallpapers
@@ -71,11 +71,11 @@ You can also add your own folders of wallpaper projects under
 ### Scene wallpapers
 
 ```bash
-gnome-wallpaper-engine-setup-scene   # installed from the .deb
+gnome-paper-engine-setup-scene   # installed from the .deb
 ./setup-scene-renderer.sh            # from the source folder
 ```
 
-This builds linux-wallpaperengine into `~/.local/share/gnome-wallpaper-engine`
+This builds linux-wallpaperengine into `~/.local/share/gnome-paper-engine`
 without root: its ~100 build dependencies are downloaded and unpacked there
 rather than installed, because installing them system-wide would swap out
 JACK libraries that Steam uses. It downloads roughly 1 GB and takes a few
@@ -126,20 +126,20 @@ Desktop Icons extension uses, and the wallpaper sits below its icons.
 
 ## Uninstall
 
-The package: `sudo apt remove gnome-wallpaper-engine`.
+The package: `sudo apt remove gnome-paper-engine`.
 
 A source-folder install:
 
 ```bash
-gnome-extensions disable gnome-wallpaper-engine@doeshing
-rm -rf ~/.local/share/gnome-shell/extensions/gnome-wallpaper-engine@doeshing \
-       ~/.local/share/applications/gnome-wallpaper-engine.desktop
+gnome-extensions disable gnome-paper-engine@koukeneko.github.io
+rm -rf ~/.local/share/gnome-shell/extensions/gnome-paper-engine@koukeneko.github.io \
+       ~/.local/share/applications/gnome-paper-engine.desktop
 ```
 
 Either way the scene renderer stays in your home folder until you delete it:
 
 ```bash
-rm -rf ~/.local/share/gnome-wallpaper-engine ~/.cache/gnome-wallpaper-engine
+rm -rf ~/.local/share/gnome-paper-engine ~/.cache/gnome-paper-engine
 ```
 
 ## Licence

@@ -18,7 +18,7 @@ const STEAM_ROOTS = [
 
 // Where setup-scene-renderer.sh installs linux-wallpaperengine.
 const LOCAL_SCENE_RENDERER = GLib.build_filenamev(
-    [GLib.get_user_data_dir(), 'gnome-wallpaper-engine', 'bin', 'linux-wallpaperengine']);
+    [GLib.get_user_data_dir(), 'gnome-paper-engine', 'bin', 'linux-wallpaperengine']);
 
 function readTextFile(path) {
     try {

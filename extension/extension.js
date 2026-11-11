@@ -15,7 +15,7 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import {loadProject, resolveProperties, findSceneRenderer, findAssetsDir} from './library.js';
 
 // Must match TITLE_PREFIX in renderer.js.
-const RENDERER_TITLE_PREFIX = 'gnome-wallpaper-engine-renderer-';
+const RENDERER_TITLE_PREFIX = 'gnome-paper-engine-renderer-';
 
 const RELAUNCH_DELAY_MS = 2000;
 // Stop relaunching a renderer that keeps dying, so a broken wallpaper can't
@@ -32,7 +32,7 @@ const SCENE_SCALING = {cover: 'fill', contain: 'fit', fill: 'stretch'};
 const SIGSTOP = 19;
 const SIGCONT = 18;
 
-export default class WallpaperEngineExtension extends Extension {
+export default class PaperEngineExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
         // {subprocess, pid, stdin, builtin, monitorIndex, startTime}. Only the
@@ -170,7 +170,7 @@ export default class WallpaperEngineExtension extends Extension {
     _spawnSceneRenderers(project, properties) {
         const binary = findSceneRenderer(this._settings.get_string('scene-renderer'));
         if (!binary) {
-            this._notify('Scene wallpapers need linux-wallpaperengine. Run gnome-wallpaper-engine-setup-scene (setup-scene-renderer.sh in a source checkout) to install it.');
+            this._notify('Scene wallpapers need linux-wallpaperengine. Run gnome-paper-engine-setup-scene (setup-scene-renderer.sh in a source checkout) to install it.');
             return;
         }
         const assetsDir = findAssetsDir();
@@ -391,6 +391,6 @@ export default class WallpaperEngineExtension extends Extension {
 
     _notify(message) {
         console.warn(`${this.uuid}: ${message}`);
-        Main.notify('Wallpaper Engine', message);
+        Main.notify('Paper Engine', message);
     }
 }

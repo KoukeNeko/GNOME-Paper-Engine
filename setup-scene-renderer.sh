@@ -8,7 +8,7 @@
 # directory instead of being installed: installing them system-wide would
 # replace libjack-jackd2 (including the i386 build Steam uses) with libjack0.
 #
-# Everything ends up under ~/.local/share/gnome-wallpaper-engine; delete that
+# Everything ends up under ~/.local/share/gnome-paper-engine; delete that
 # directory to uninstall. Re-run this script after a distribution upgrade.
 
 set -euo pipefail
@@ -24,8 +24,8 @@ BUILD_DEPENDENCIES=(
 
 # Resolved through symlinks: the .deb installs this script as a link in /usr/bin.
 SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
-PREFIX="${XDG_DATA_HOME:-$HOME/.local/share}/gnome-wallpaper-engine"
-BUILD_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/gnome-wallpaper-engine"
+PREFIX="${XDG_DATA_HOME:-$HOME/.local/share}/gnome-paper-engine"
+BUILD_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/gnome-paper-engine"
 SYSROOT="$PREFIX/sysroot"
 MULTIARCH="$(gcc -print-multiarch)"
 SYSROOT_LIBDIR="$SYSROOT/usr/lib/$MULTIARCH"
@@ -93,4 +93,4 @@ EOF
 chmod +x "$PREFIX/bin/linux-wallpaperengine"
 
 "$PREFIX/bin/linux-wallpaperengine" --help >/dev/null
-echo "==> Done. Scene wallpapers are now available in the Wallpaper Engine picker."
+echo "==> Done. Scene wallpapers are now available in the Paper Engine picker."

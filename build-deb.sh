@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Builds dist/gnome-wallpaper-engine_<version>_all.deb.
+# Builds dist/gnome-paper-engine_<version>_all.deb.
 #
-#   Install:    sudo apt install ./dist/gnome-wallpaper-engine_<version>_all.deb
-#   Uninstall:  sudo apt remove gnome-wallpaper-engine
+#   Install:    sudo apt install ./dist/gnome-paper-engine_<version>_all.deb
+#   Uninstall:  sudo apt remove gnome-paper-engine
 #
 # The package installs the extension system-wide; each user still turns it on
-# once with `gnome-extensions enable gnome-wallpaper-engine@doeshing` after
+# once with `gnome-extensions enable gnome-paper-engine@koukeneko.github.io` after
 # logging in again. The scene renderer is not part of the package: it is built
-# per user by `gnome-wallpaper-engine-setup-scene`.
+# per user by `gnome-paper-engine-setup-scene`.
 
 set -euo pipefail
 # Package files must not be group-writable, whatever the caller's umask is.
 umask 022
 
-PACKAGE=gnome-wallpaper-engine
-UUID=gnome-wallpaper-engine@doeshing
+PACKAGE=gnome-paper-engine
+UUID=gnome-paper-engine@koukeneko.github.io
 SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 for tool in dpkg-deb glib-compile-schemas python3; do
@@ -42,12 +42,13 @@ extension_dir="$ROOT/usr/share/gnome-shell/extensions/$UUID"
 data_dir="$ROOT/usr/share/$PACKAGE"
 doc_dir="$ROOT/usr/share/doc/$PACKAGE"
 mkdir -p "$extension_dir/schemas" "$data_dir/patches" "$doc_dir" \
-    "$ROOT/usr/share/applications" "$ROOT/usr/bin" "$ROOT/DEBIAN"
+    "$ROOT/usr/share/applications" "$ROOT/usr/share/icons/hicolor/scalable/apps" "$ROOT/usr/bin" "$ROOT/DEBIAN"
 
 install -m 644 "$SOURCE_DIR"/extension/*.js "$SOURCE_DIR/extension/metadata.json" "$extension_dir"
 install -m 644 "$SOURCE_DIR"/extension/schemas/*.gschema.xml "$extension_dir/schemas"
 glib-compile-schemas --strict "$extension_dir/schemas"
 
+install -m 644 "$SOURCE_DIR/icons/$PACKAGE.svg" "$ROOT/usr/share/icons/hicolor/scalable/apps"
 install -m 755 "$SOURCE_DIR/setup-scene-renderer.sh" "$data_dir"
 install -m 644 "$SOURCE_DIR"/patches/*.patch "$data_dir/patches"
 ln -s "../share/$PACKAGE/setup-scene-renderer.sh" "$ROOT/usr/bin/$PACKAGE-setup-scene"
@@ -67,10 +68,10 @@ EOF
 cat > "$ROOT/usr/share/applications/$PACKAGE.desktop" <<EOF
 [Desktop Entry]
 Type=Application
-Name=Wallpaper Engine
+Name=Paper Engine
 Comment=Choose a live wallpaper from your Steam Wallpaper Engine library
 Exec=gnome-extensions prefs $UUID
-Icon=preferences-desktop-wallpaper
+Icon=$PACKAGE
 Categories=Utility;GNOME;GTK;
 Keywords=wallpaper;background;live;steam;
 EOF

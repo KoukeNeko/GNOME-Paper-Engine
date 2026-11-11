@@ -60,17 +60,17 @@ const WORKSHOP_TAGS = {
 };
 
 const STYLE = `
-.gwe-sidebar { background-color: alpha(currentColor, 0.04); }
-.gwe-section-title { font-size: 0.85em; font-weight: 600; opacity: 0.65; margin: 14px 12px 4px; }
-.gwe-thumb { border-radius: 12px; }
-.gwe-card { padding: 6px; border-radius: 14px; }
-.gwe-card:selected { background-color: alpha(@accent_bg_color, 0.28); }
-.gwe-badge { background-color: rgba(0, 0, 0, 0.72); color: white; border-radius: 11px; padding: 2px 8px; font-size: 0.85em; font-weight: 600; margin: 8px; }
-.gwe-badge.warning { color: #e6b24a; }
-.gwe-unsupported picture { opacity: 0.35; }
-.gwe-now { background-color: alpha(currentColor, 0.06); border-radius: 12px; padding: 10px; margin: 8px; }
-.gwe-hero { border-radius: 12px; }
-.gwe-chip { border-radius: 999px; padding: 2px 12px; min-height: 28px; }
+.gpe-sidebar { background-color: alpha(currentColor, 0.04); }
+.gpe-section-title { font-size: 0.85em; font-weight: 600; opacity: 0.65; margin: 14px 12px 4px; }
+.gpe-thumb { border-radius: 12px; }
+.gpe-card { padding: 6px; border-radius: 14px; }
+.gpe-card:selected { background-color: alpha(@accent_bg_color, 0.28); }
+.gpe-badge { background-color: rgba(0, 0, 0, 0.72); color: white; border-radius: 11px; padding: 2px 8px; font-size: 0.85em; font-weight: 600; margin: 8px; }
+.gpe-badge.warning { color: #e6b24a; }
+.gpe-unsupported picture { opacity: 0.35; }
+.gpe-now { background-color: alpha(currentColor, 0.06); border-radius: 12px; padding: 10px; margin: 8px; }
+.gpe-hero { border-radius: 12px; }
+.gpe-chip { border-radius: 999px; padding: 2px 12px; min-height: 28px; }
 `;
 
 function stripMarkup(text) {
@@ -134,17 +134,17 @@ function createChoiceRow(settings, key, title, labels) {
 const WallpaperCard = GObject.registerClass(
 class WallpaperCard extends Gtk.FlowBoxChild {
     constructor(item, meta) {
-        super({tooltip_text: item.title, css_classes: ['gwe-card']});
+        super({tooltip_text: item.title, css_classes: ['gpe-card']});
         this.item = item;
 
         this.picture = new Gtk.Picture({
             content_fit: Gtk.ContentFit.COVER,
             height_request: PREVIEW_SIZE,
-            css_classes: ['gwe-thumb', 'card'],
+            css_classes: ['gpe-thumb', 'card'],
             overflow: Gtk.Overflow.HIDDEN,
         });
         this._badge = new Gtk.Label({
-            css_classes: ['gwe-badge'], halign: Gtk.Align.START, valign: Gtk.Align.START, visible: false,
+            css_classes: ['gpe-badge'], halign: Gtk.Align.START, valign: Gtk.Align.START, visible: false,
         });
         const overlay = new Gtk.Overlay({child: this.picture});
         overlay.add_overlay(this._badge);
@@ -248,13 +248,13 @@ class Picker {
         const header = new Adw.HeaderBar({
             show_end_title_buttons: false,
             show_start_title_buttons: false,
-            title_widget: new Adw.WindowTitle({title: 'Wallpaper Engine'}),
+            title_widget: new Adw.WindowTitle({title: 'Paper Engine'}),
         });
 
         this._navRows = new Map();
         const navigation = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL});
         const addSection = (title, views) => {
-            navigation.append(new Gtk.Label({label: title, xalign: 0, css_classes: ['gwe-section-title']}));
+            navigation.append(new Gtk.Label({label: title, xalign: 0, css_classes: ['gpe-section-title']}));
             const list = new Gtk.ListBox({css_classes: ['navigation-sidebar'], selection_mode: Gtk.SelectionMode.SINGLE});
             for (const [id, icon, label] of views) {
                 const count = new Gtk.Label({css_classes: ['dim-label', 'caption', 'numeric']});
@@ -274,13 +274,13 @@ class Picker {
         addSection('Steam 工作坊', [...WORKSHOP_VIEWS, SUBSCRIBED_VIEW]);
         addSection('偏好設定', [SETTINGS_VIEW]);
 
-        this._nowPlaying = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 8, css_classes: ['gwe-now']});
+        this._nowPlaying = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 8, css_classes: ['gpe-now']});
 
         const body = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL});
         body.append(new Gtk.ScrolledWindow({child: navigation, vexpand: true, hscrollbar_policy: Gtk.PolicyType.NEVER}));
         body.append(this._nowPlaying);
 
-        const view = new Adw.ToolbarView({content: body, width_request: 236, hexpand: false, css_classes: ['gwe-sidebar']});
+        const view = new Adw.ToolbarView({content: body, width_request: 236, hexpand: false, css_classes: ['gpe-sidebar']});
         view.add_top_bar(header);
         return view;
     }
@@ -308,7 +308,7 @@ class Picker {
         // Workshop tag filters.
         this._tagBar = new Gtk.Box({spacing: 8, margin_start: 20, margin_end: 20, margin_top: 12});
         for (const [label, tag] of Object.entries(WORKSHOP_TAGS)) {
-            const chip = new Gtk.ToggleButton({label, css_classes: ['gwe-chip']});
+            const chip = new Gtk.ToggleButton({label, css_classes: ['gpe-chip']});
             chip.connect('toggled', () => {
                 if (chip.active) {
                     for (let other = this._tagBar.get_first_child(); other; other = other.get_next_sibling()) {
@@ -327,7 +327,7 @@ class Picker {
         }
 
         this._sceneNotice = new Adw.Banner({
-            title: '場景桌布需要場景渲染器：請先在終端機執行一次 gnome-wallpaper-engine-setup-scene（原始碼安裝則是 setup-scene-renderer.sh）。',
+            title: '場景桌布需要場景渲染器：請先在終端機執行一次 gnome-paper-engine-setup-scene（原始碼安裝則是 setup-scene-renderer.sh）。',
         });
 
         this._flowBox = new Gtk.FlowBox({
@@ -488,7 +488,7 @@ class Picker {
             const card = new WallpaperCard(project, TYPE_LABELS[project.type]);
             card.picture.set_paintable(loadPreviewTexture(project.preview));
             if (!isSceneSupported(project))
-                card.add_css_class('gwe-unsupported');
+                card.add_css_class('gpe-unsupported');
             return card;
         }), true);
     }
@@ -620,7 +620,7 @@ class Picker {
         const current = this._settings.get_string('wallpaper');
 
         const hero = new Gtk.Picture({
-            content_fit: Gtk.ContentFit.COVER, height_request: 308, css_classes: ['gwe-hero', 'card'],
+            content_fit: Gtk.ContentFit.COVER, height_request: 308, css_classes: ['gpe-hero', 'card'],
             overflow: Gtk.Overflow.HIDDEN,
         });
         if (item.dir) {
@@ -836,7 +836,7 @@ class Picker {
         const info = new Gtk.Box({spacing: 10});
         const thumbnail = new Gtk.Picture({
             content_fit: Gtk.ContentFit.COVER, width_request: 44, height_request: 44,
-            css_classes: ['gwe-thumb'], overflow: Gtk.Overflow.HIDDEN, can_shrink: true,
+            css_classes: ['gpe-thumb'], overflow: Gtk.Overflow.HIDDEN, can_shrink: true,
             paintable: loadPreviewTexture(project.preview),
         });
         info.append(new Adw.Clamp({maximum_size: 44, child: thumbnail}));
@@ -923,9 +923,9 @@ class Picker {
     }
 }
 
-export default class WallpaperEnginePreferences extends ExtensionPreferences {
+export default class PaperEnginePreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
-        window.set_title('Wallpaper Engine');
+        window.set_title('Paper Engine');
         window.set_default_size(1280, 820);
         window.set_search_enabled(false);
         new Picker(window, this.getSettings());

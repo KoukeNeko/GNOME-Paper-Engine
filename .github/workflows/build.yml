@@ -31,7 +31,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: gnome-wallpaper-engine-deb
+          name: gnome-paper-engine-deb
           path: dist/*.deb
           if-no-files-found: error
 
@@ -46,4 +46,4 @@ jobs:
             --prerelease \
             --target "$GITHUB_SHA" \
             --title "Development build" \
-            --notes "Built from ${GITHUB_SHA::7}. Install with \`sudo apt install ./gnome-wallpaper-engine_*_all.deb\`; see the README for the steps after that."
+            --notes "Built from ${GITHUB_SHA::7}. Install with \`sudo apt install ./gnome-paper-engine_*_all.deb\`; see the README for the steps after that."
