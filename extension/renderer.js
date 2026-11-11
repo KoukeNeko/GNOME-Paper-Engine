@@ -12,6 +12,7 @@ import Gdk from 'gi://Gdk?version=3.0';
 import Gio from 'gi://Gio';
 import GioUnix from 'gi://GioUnix';
 import GLib from 'gi://GLib';
+import Gst from 'gi://Gst';
 import Gtk from 'gi://Gtk?version=3.0';
 import WebKit from 'gi://WebKit2?version=4.1';
 
@@ -20,10 +21,30 @@ const TITLE_PREFIX = 'gnome-paper-engine-renderer-';
 
 const FIT_TO_OBJECT_FIT = {cover: 'cover', contain: 'contain', fill: 'fill'};
 
+// What Wallpaper Engine hands an audio listener: 64 frequency bands for the
+// left channel followed by 64 for the right, each 0…1.
+const AUDIO_BANDS_PER_CHANNEL = 64;
+const AUDIO_FRAME_NS = 33_000_000;
+// Bands quieter than this count as silence. A single band of ordinary music
+// sits around -40…-15 dB, so levels are taken from this dB range (squared, to
+// keep quiet passages low) rather than from the raw amplitude, which would
+// leave every bar near zero.
+const AUDIO_FLOOR_DB = -60;
+// The analyser yields twice as many (linear) bands as are used: the upper
+// half of the spectrum is nearly empty for music and would leave half the
+// bars of a visualiser flat.
+const AUDIO_PIPELINE = `pulsesrc device=@DEFAULT_MONITOR@ ! audioconvert ! audio/x-raw,channels=2 !
+    spectrum bands=${AUDIO_BANDS_PER_CHANNEL * 2} interval=${AUDIO_FRAME_NS} threshold=${AUDIO_FLOOR_DB} multi-channel=true ! fakesink sync=false`;
+
 // Wallpaper Engine's web API registers listeners through these globals; pages
 // call them unconditionally, so they have to exist even where we feed no data.
+// The audio listener tells the renderer about itself, so system audio is only
+// captured for wallpapers that use it.
 const WEB_API_STUBS = `
-window.wallpaperRegisterAudioListener = () => {};
+window.wallpaperRegisterAudioListener = listener => {
+    window.__paperEngineAudioListener = listener;
+    window.webkit.messageHandlers.paperEngine.postMessage('audio');
+};
 window.wallpaperRegisterMediaStatusListener = () => {};
 window.wallpaperRegisterMediaPropertiesListener = () => {};
 window.wallpaperRegisterMediaThumbnailListener = () => {};
@@ -35,7 +56,7 @@ window.wallpaperRequestRandomFileForProperty = () => {};
 function parseArgs(argv) {
     const options = {
         type: '', file: '', fit: 'cover', muted: false, volume: 100,
-        monitors: 1, properties: '{}',
+        monitors: '0', properties: '{}',
     };
     for (let i = 0; i < argv.length; i++) {
         const name = argv[i].replace(/^--/, '');
@@ -46,10 +67,11 @@ function parseArgs(argv) {
         else
             throw new Error(`Unknown argument: ${argv[i]}`);
     }
-    options.monitors = Number(options.monitors);
+    // Indices of the monitors to open a window for, e.g. "0,2".
+    options.monitors = options.monitors.split(',').map(Number);
     options.volume = Number(options.volume);
     if (!['video', 'web'].includes(options.type) || !options.file)
-        throw new Error('Usage: renderer.js --type video|web --file PATH [--fit MODE] [--muted] [--volume N] [--monitors N] [--properties JSON]');
+        throw new Error('Usage: renderer.js --type video|web --file PATH [--fit MODE] [--muted] [--volume N] [--monitors I,J,…] [--properties JSON]');
     return options;
 }
 
@@ -66,11 +88,12 @@ class Renderer {
     constructor(options) {
         this._options = options;
         this._paused = false;
-        this._views = [];
+        // Monitor index → WebView.
+        this._views = new Map();
         // Per window: whether the forwarded pointer has its button pressed.
         this._buttonDown = [];
-        for (let i = 0; i < options.monitors; i++)
-            this._views.push(this._createWindow(i));
+        for (const index of options.monitors)
+            this._views.set(index, this._createWindow(index));
         this._readCommands();
     }
 
@@ -79,6 +102,8 @@ class Renderer {
 
         const contentManager = new WebKit.UserContentManager();
         if (type === 'web') {
+            contentManager.register_script_message_handler('paperEngine');
+            contentManager.connect('script-message-received::paperEngine', () => this._startAudioCapture());
             contentManager.add_script(new WebKit.UserScript(
                 WEB_API_STUBS,
                 WebKit.UserContentInjectedFrames.TOP_FRAME,
@@ -155,10 +180,47 @@ class Renderer {
         });
     }
 
+    // Analyses what the system is playing and feeds it to the pages' audio listeners.
+    _startAudioCapture() {
+        if (this._audioPipeline)
+            return;
+        try {
+            Gst.init(null);
+            this._audioPipeline = Gst.parse_launch(AUDIO_PIPELINE);
+        } catch (e) {
+            printerr(`Audio capture is not available: ${e.message}`);
+            return;
+        }
+        const bus = this._audioPipeline.get_bus();
+        bus.add_signal_watch();
+        bus.connect('message::element', (_bus, message) => {
+            const structure = message.get_structure();
+            if (structure.get_name() !== 'spectrum')
+                return;
+            // The magnitudes are nested GValue arrays, which GJS cannot unpack;
+            // their text form lists the left channel's bands, then the right's, in dB.
+            const text = structure.to_string();
+            const decibels = [...text.slice(text.indexOf('magnitude=')).matchAll(/\(float\)(-?[\d.]+)/g)]
+                .map(([, value]) => Number(value));
+            const perChannel = decibels.length / 2;
+            const levels = [0, perChannel].flatMap(start => decibels
+                .slice(start, start + AUDIO_BANDS_PER_CHANNEL)
+                .map(db => (Math.min(1, Math.max(0, 1 - db / AUDIO_FLOOR_DB)) ** 2).toFixed(4)));
+            for (const view of this._views.values())
+                this._runJs(view, `window.__paperEngineAudioListener?.([${levels}]);`);
+        });
+        bus.connect('message::error', (_bus, message) => {
+            const [error] = message.parse_error();
+            printerr(`Audio capture stopped: ${error.message}`);
+        });
+        this._audioPipeline.set_state(this._paused ? Gst.State.PAUSED : Gst.State.PLAYING);
+    }
+
     _setPaused(paused) {
         this._paused = paused;
+        this._audioPipeline?.set_state(paused ? Gst.State.PAUSED : Gst.State.PLAYING);
         const call = paused ? 'pause()' : 'play()';
-        for (const view of this._views) {
+        for (const view of this._views.values()) {
             this._runJs(view, `
                 document.querySelectorAll('video, audio').forEach(media => media.${call});
                 window.wallpaperPropertyListener?.setPaused?.(${paused});
@@ -172,7 +234,7 @@ class Renderer {
         case 'mouse': {
             // mouse <window index> <x> <y> <button down>, position as fractions of the window.
             const index = Number(argument);
-            const view = this._views[index];
+            const view = this._views.get(index);
             if (view) {
                 const down = rest[2] === '1';
                 const events = ['mousemove'];
@@ -199,12 +261,12 @@ class Renderer {
             this._setPaused(false);
             break;
         case 'mute':
-            for (const view of this._views)
+            for (const view of this._views.values())
                 view.is_muted = argument === '1';
             break;
         case 'volume':
             this._options.volume = Number(argument);
-            for (const view of this._views) {
+            for (const view of this._views.values()) {
                 this._runJs(view, `document.querySelectorAll('video, audio').forEach(
                     media => { media.volume = ${this._options.volume / 100}; });`);
             }
