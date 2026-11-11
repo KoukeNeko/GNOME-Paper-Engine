@@ -105,6 +105,9 @@ cat > "$ROOT/DEBIAN/postinst" <<EOF
 #!/bin/sh
 set -e
 if [ "\$1" = configure ]; then
+    # The login message compares this file's time with running shells.
+    mkdir -p /var/lib/$PACKAGE
+    touch /var/lib/$PACKAGE/installed
     echo "$PACKAGE: log out and back in, then run:"
     echo "    gnome-extensions enable $UUID"
     echo "$PACKAGE: remove any copy in ~/.local/share/gnome-shell/extensions/$UUID first;"
@@ -112,6 +115,38 @@ if [ "\$1" = configure ]; then
 fi
 EOF
 chmod 755 "$ROOT/DEBIAN/postinst"
+
+cat > "$ROOT/DEBIAN/postrm" <<EOF
+#!/bin/sh
+set -e
+if [ "\$1" = remove ] || [ "\$1" = purge ]; then
+    rm -rf /var/lib/$PACKAGE
+fi
+EOF
+chmod 755 "$ROOT/DEBIAN/postrm"
+
+# Message of the day for terminal and SSH logins, shown only while a GNOME
+# Shell that started before this version was installed is still running: that
+# session has not loaded it yet. Like the other files in /etc it is a conffile,
+# so it outlives \`apt remove\`; the marker check keeps it quiet then.
+mkdir -p "$ROOT/etc/update-motd.d"
+cat > "$ROOT/etc/update-motd.d/60-$PACKAGE" <<EOF
+#!/bin/sh
+marker=/var/lib/$PACKAGE/installed
+[ -e "\$marker" ] || exit 0
+for pid in \$(pgrep -x gnome-shell); do
+    if [ "/proc/\$pid" -ot "\$marker" ]; then
+        echo
+        echo "GNOME Paper Engine was installed or updated: log out of GNOME and back in to load it,"
+        echo "then open \"Paper Engine\" from the app grid. If it is not turned on yet, run:"
+        echo "    gnome-extensions enable $UUID"
+        echo "Scene wallpapers need a one-time per-user setup: $PACKAGE-setup-scene"
+        exit 0
+    fi
+done
+EOF
+chmod 755 "$ROOT/etc/update-motd.d/60-$PACKAGE"
+echo "/etc/update-motd.d/60-$PACKAGE" > "$ROOT/DEBIAN/conffiles"
 
 mkdir -p "$SOURCE_DIR/dist"
 output="$SOURCE_DIR/dist/${PACKAGE}_${VERSION}_all.deb"
