@@ -28,7 +28,8 @@ read_metadata() {
     python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])' \
         "$SOURCE_DIR/extension/metadata.json" "$1"
 }
-VERSION="$(read_metadata version-name)"
+# CI appends a suffix such as ~dev42 for development builds.
+VERSION="$(read_metadata version-name)${DEB_VERSION_SUFFIX:-}"
 SHELL_VERSION="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["shell-version"][0])' \
     "$SOURCE_DIR/extension/metadata.json")"
 MAINTAINER="${DEB_MAINTAINER:-$(git -C "$SOURCE_DIR" config user.name) <$(git -C "$SOURCE_DIR" config user.email)>}"

@@ -1,0 +1,49 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  deb:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check scripts and settings schema
+        run: |
+          bash -n install.sh build-deb.sh setup-scene-renderer.sh
+          glib-compile-schemas --strict --dry-run extension/schemas
+
+      - name: Build the .deb
+        env:
+          DEB_MAINTAINER: ${{ github.repository_owner }} <${{ github.repository_owner }}@users.noreply.github.com>
+          # Sorts before the release it leads up to, and after earlier dev builds.
+          DEB_VERSION_SUFFIX: ~dev${{ github.run_number }}
+        run: |
+          ./build-deb.sh
+          dpkg-deb --info dist/*.deb
+          dpkg-deb --contents dist/*.deb
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gnome-wallpaper-engine-deb
+          path: dist/*.deb
+          if-no-files-found: error
+
+      # One rolling pre-release that always holds the build of the latest commit on main.
+      - name: Publish the dev build
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete dev --yes --cleanup-tag || true
+          gh release create dev dist/*.deb \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Development build" \
+            --notes "Built from ${GITHUB_SHA::7}. Install with \`sudo apt install ./gnome-wallpaper-engine_*_all.deb\`; see the README for the steps after that."

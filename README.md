@@ -25,9 +25,12 @@ No extra packages are needed for video and web wallpapers.
 
 ### As a .deb package
 
+Download the latest development build from the
+[dev release](https://github.com/KoukeNeko/GNOME-Paper-Engine/releases/tag/dev),
+or build it yourself with `./build-deb.sh` (it ends up in `dist/`), then:
+
 ```bash
-./build-deb.sh
-sudo apt install ./dist/gnome-wallpaper-engine_*_all.deb
+sudo apt install ./gnome-wallpaper-engine_*_all.deb
 ```
 
 Log out and back in, then turn the extension on once:
