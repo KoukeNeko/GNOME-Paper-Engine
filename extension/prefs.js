@@ -327,7 +327,7 @@ class Picker {
         }
 
         this._sceneNotice = new Adw.Banner({
-            title: '場景桌布需要場景渲染器：請先執行一次專案資料夾裡的 setup-scene-renderer.sh。',
+            title: '場景桌布需要場景渲染器：請先在終端機執行一次 gnome-wallpaper-engine-setup-scene（原始碼安裝則是 setup-scene-renderer.sh）。',
         });
 
         this._flowBox = new Gtk.FlowBox({
@@ -925,6 +925,7 @@ class Picker {
 
 export default class WallpaperEnginePreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
+        window.set_title('Wallpaper Engine');
         window.set_default_size(1280, 820);
         window.set_search_enabled(false);
         new Picker(window, this.getSettings());

@@ -170,7 +170,7 @@ export default class WallpaperEngineExtension extends Extension {
     _spawnSceneRenderers(project, properties) {
         const binary = findSceneRenderer(this._settings.get_string('scene-renderer'));
         if (!binary) {
-            this._notify('Scene wallpapers need linux-wallpaperengine. Run setup-scene-renderer.sh from the project folder to install it.');
+            this._notify('Scene wallpapers need linux-wallpaperengine. Run gnome-wallpaper-engine-setup-scene (setup-scene-renderer.sh in a source checkout) to install it.');
             return;
         }
         const assetsDir = findAssetsDir();
