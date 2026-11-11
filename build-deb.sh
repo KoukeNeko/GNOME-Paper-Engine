@@ -136,11 +136,22 @@ marker=/var/lib/$PACKAGE/installed
 [ -e "\$marker" ] || exit 0
 for pid in \$(pgrep -x gnome-shell); do
     if [ "/proc/\$pid" -ot "\$marker" ]; then
+        printf '\\n\\033[1;38;5;208m'
+        cat <<'BANNER'
+  ████   ███  ████  █████ ████      █████ █   █  ████ █████ █   █ █████
+  █   █ █   █ █   █ █     █   █     █     ██  █ █       █   ██  █ █
+  ████  █████ ████  ████  ████      ████  █ █ █ █  ██   █   █ █ █ ████
+  █     █   █ █     █     █  █      █     █  ██ █   █   █   █  ██ █
+  █     █   █ █     █████ █   █     █████ █   █  ████ █████ █   █ █████
+BANNER
+        printf '\\033[0m\\n'
+        echo "  Installed or updated - log out of GNOME and back in to load it."
         echo
-        echo "GNOME Paper Engine was installed or updated: log out of GNOME and back in to load it,"
-        echo "then open \"Paper Engine\" from the app grid. If it is not turned on yet, run:"
-        echo "    gnome-extensions enable $UUID"
-        echo "Scene wallpapers need a one-time per-user setup: $PACKAGE-setup-scene"
+        echo "  1. Log out and back in."
+        echo "  2. Open \\"Paper Engine\\" from the app grid."
+        echo "     Not turned on yet?  gnome-extensions enable $UUID"
+        echo "  3. For scene wallpapers, once per user:  $PACKAGE-setup-scene"
+        echo
         exit 0
     fi
 done
