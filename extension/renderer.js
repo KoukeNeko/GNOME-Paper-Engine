@@ -6,7 +6,7 @@
 // install) and opens one undecorated window per monitor. The shell extension
 // turns those windows into desktop-layer windows and talks to this process
 // over stdin, one command per line: pause | play | mute 0|1 | volume 0-100 |
-// mouse INDEX X Y.
+// mouse INDEX X Y BUTTON.
 
 import Gdk from 'gi://Gdk?version=3.0';
 import Gio from 'gi://Gio';
@@ -67,6 +67,8 @@ class Renderer {
         this._options = options;
         this._paused = false;
         this._views = [];
+        // Per window: whether the forwarded pointer has its button pressed.
+        this._buttonDown = [];
         for (let i = 0; i < options.monitors; i++)
             this._views.push(this._createWindow(i));
         this._readCommands();
@@ -168,14 +170,24 @@ class Renderer {
         const [command, argument, ...rest] = line.trim().split(' ');
         switch (command) {
         case 'mouse': {
-            // mouse <window index> <x> <y>, position as fractions of the window.
-            const view = this._views[Number(argument)];
+            // mouse <window index> <x> <y> <button down>, position as fractions of the window.
+            const index = Number(argument);
+            const view = this._views[index];
             if (view) {
+                const down = rest[2] === '1';
+                const events = ['mousemove'];
+                if (down !== Boolean(this._buttonDown[index]))
+                    events.push(...down ? ['mousedown'] : ['mouseup', 'click']);
+                this._buttonDown[index] = down;
                 this._runJs(view, `{
                     const x = ${Number(rest[0])} * innerWidth, y = ${Number(rest[1])} * innerHeight;
-                    (document.elementFromPoint(x, y) ?? document).dispatchEvent(new MouseEvent('mousemove', {
-                        clientX: x, clientY: y, screenX: x, screenY: y, bubbles: true, view: window,
-                    }));
+                    const target = document.elementFromPoint(x, y) ?? document;
+                    for (const type of ${JSON.stringify(events)}) {
+                        target.dispatchEvent(new MouseEvent(type, {
+                            clientX: x, clientY: y, screenX: x, screenY: y, button: 0,
+                            buttons: ${down ? 1 : 0}, bubbles: true, cancelable: true, view: window,
+                        }));
+                    }
                 }`);
             }
             break;

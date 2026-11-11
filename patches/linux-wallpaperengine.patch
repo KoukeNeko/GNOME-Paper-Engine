@@ -1,5 +1,5 @@
 diff --git a/src/WallpaperEngine/Input/Drivers/GLFWMouseInput.cpp b/src/WallpaperEngine/Input/Drivers/GLFWMouseInput.cpp
-index 8ddce13..68b8fd4 100644
+index 8ddce13..1061b7b 100644
 --- a/src/WallpaperEngine/Input/Drivers/GLFWMouseInput.cpp
 +++ b/src/WallpaperEngine/Input/Drivers/GLFWMouseInput.cpp
 @@ -1,5 +1,9 @@
@@ -12,7 +12,7 @@ index 8ddce13..68b8fd4 100644
  
  #include "WallpaperEngine/Render/Drivers/GLFWOpenGLDriver.h"
  
-@@ -19,12 +23,40 @@ void GLFWMouseInput::update () {
+@@ -19,12 +23,43 @@ void GLFWMouseInput::update () {
      this->m_leftClick = leftClickState == GLFW_RELEASE ? MouseClickStatus::Released : MouseClickStatus::Clicked;
      this->m_rightClick = rightClickState == GLFW_RELEASE ? MouseClickStatus::Released : MouseClickStatus::Clicked;
  
@@ -24,8 +24,8 @@ index 8ddce13..68b8fd4 100644
 -    this->m_mousePosition.y = static_cast<double> (framebufferSize.y) - this->m_mousePosition.y;
 +
 +    // A host that keeps this window below everything else (so it never gets pointer events) can feed
-+    // the pointer position through stdin instead, one "x y" line per update, as fractions of the
-+    // window measured from its top-left corner.
++    // the pointer through stdin instead, one "x y [button]" line per update: the position as fractions
++    // of the window measured from its top-left corner, and 1 while the left button is held on it.
 +    pollfd stdinPoll = { .fd = STDIN_FILENO, .events = POLLIN, .revents = 0 };
 +    while (!this->m_stdinClosed && poll (&stdinPoll, 1, 0) > 0) {
 +	char buffer[256];
@@ -39,8 +39,10 @@ index 8ddce13..68b8fd4 100644
 +    for (size_t end; (end = this->m_stdinBuffer.find ('\n')) != std::string::npos; this->m_stdinBuffer.erase (0, end + 1)) {
 +	double x = 0.0;
 +	double y = 0.0;
-+	if (sscanf (this->m_stdinBuffer.c_str (), "%lf %lf", &x, &y) == 2) {
++	int button = 0;
++	if (sscanf (this->m_stdinBuffer.c_str (), "%lf %lf %d", &x, &y, &button) >= 2) {
 +	    this->m_hostPosition = { x, y };
++	    this->m_hostLeftClick = button != 0;
 +	    this->m_hasHostPosition = true;
 +	}
 +    }
@@ -48,6 +50,7 @@ index 8ddce13..68b8fd4 100644
 +    if (this->m_hasHostPosition) {
 +	this->m_mousePosition = { this->m_hostPosition.x * framebufferSize.x,
 +				  (1.0 - this->m_hostPosition.y) * framebufferSize.y };
++	this->m_leftClick = this->m_hostLeftClick ? MouseClickStatus::Clicked : MouseClickStatus::Released;
 +    } else {
 +	// update current mouse position
 +	glfwGetCursorPos (this->m_driver.getWindow (), &this->m_mousePosition.x, &this->m_mousePosition.y);
@@ -59,7 +62,7 @@ index 8ddce13..68b8fd4 100644
      // interpolate to the new position
      this->m_reportedPosition = glm::mix (this->m_reportedPosition, this->m_mousePosition, 1.0);
 diff --git a/src/WallpaperEngine/Input/Drivers/GLFWMouseInput.h b/src/WallpaperEngine/Input/Drivers/GLFWMouseInput.h
-index 2150c6b..1c5a457 100644
+index 2150c6b..bf61825 100644
 --- a/src/WallpaperEngine/Input/Drivers/GLFWMouseInput.h
 +++ b/src/WallpaperEngine/Input/Drivers/GLFWMouseInput.h
 @@ -3,6 +3,7 @@
@@ -70,13 +73,14 @@ index 2150c6b..1c5a457 100644
  
  namespace WallpaperEngine::Render::Drivers {
  class GLFWOpenGLDriver;
-@@ -44,6 +45,11 @@ private:
+@@ -44,6 +45,12 @@ private:
       */
      glm::dvec2 m_mousePosition = {};
      glm::dvec2 m_reportedPosition = {};
 +    /** Pointer position fed by the host through stdin, as fractions of the window */
 +    glm::dvec2 m_hostPosition = {};
 +    bool m_hasHostPosition = false;
++    bool m_hostLeftClick = false;
 +    bool m_stdinClosed = false;
 +    std::string m_stdinBuffer = {};
      MouseClickStatus m_leftClick = Released;
