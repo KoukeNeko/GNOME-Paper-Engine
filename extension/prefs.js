@@ -28,6 +28,11 @@ const SEARCH_DELAY_MS = 400;
 // Options shown in the details pane before "show all".
 const COLLAPSED_PROPERTIES = 6;
 const DETAIL_PANE_WIDTH = 348;
+// The one distance between a pane's edge and its content, and between blocks.
+const MARGIN = 12;
+// Cards and navigation rows carry this much padding of their own, so their
+// containers are inset by the difference to keep content MARGIN from the edge.
+const INSET = 6;
 
 const STEAM_INSTALL_URI = 'steam://install/431960';
 
@@ -74,15 +79,13 @@ const WORKSHOP_TAGS = {
 };
 
 const STYLE = `
-.gpe-section-title { font-size: 0.85em; font-weight: 600; opacity: 0.65; margin: 14px 12px 4px; }
-.gpe-thumb { border-radius: 12px; }
-.gpe-card { padding: 6px; border-radius: 14px; }
+.gpe-thumb, .gpe-hero, .gpe-now { border-radius: 12px; }
+.gpe-card { padding: 6px; border-radius: 18px; }
 .gpe-card:selected { background-color: alpha(@accent_bg_color, 0.28); }
-.gpe-badge { background-color: rgba(0, 0, 0, 0.72); color: white; border-radius: 11px; padding: 2px 8px; font-size: 0.85em; font-weight: 600; margin: 8px; }
+.gpe-badge { background-color: rgba(0, 0, 0, 0.72); color: white; border-radius: 999px; padding: 2px 8px; font-size: 0.85em; font-weight: 600; margin: 6px; }
 .gpe-badge.warning { color: #e6b24a; }
 .gpe-unsupported picture { opacity: 0.35; }
-.gpe-now { background-color: alpha(currentColor, 0.06); border-radius: 12px; padding: 10px; margin: 8px; }
-.gpe-hero { border-radius: 12px; }
+.gpe-now { background-color: alpha(currentColor, 0.06); padding: 12px; }
 .gpe-chip { border-radius: 999px; padding: 2px 12px; min-height: 28px; }
 `;
 
@@ -152,7 +155,8 @@ function createChoiceRow(settings, key, title, labels) {
 const WallpaperCard = GObject.registerClass(
 class WallpaperCard extends Gtk.FlowBoxChild {
     constructor(item, meta) {
-        super({tooltip_text: item.title, css_classes: ['gpe-card']});
+        // Centred, so the selection hugs the card instead of the grid cell.
+        super({tooltip_text: item.title, css_classes: ['gpe-card'], halign: Gtk.Align.CENTER});
         this.item = item;
 
         this.picture = new Gtk.Picture({
@@ -167,13 +171,17 @@ class WallpaperCard extends Gtk.FlowBoxChild {
         const overlay = new Gtk.Overlay({child: this.picture});
         overlay.add_overlay(this._badge);
 
-        const box = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 4});
-        // The clamp keeps the card at thumbnail width whatever the image size.
+        const box = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: INSET});
+        // The clamp keeps the card at thumbnail width whatever the image size,
+        // and the labels ask for no width of their own, so a long title is
+        // cut off instead of widening every card of the grid.
         box.append(new Adw.Clamp({maximum_size: PREVIEW_SIZE, child: overlay}));
         box.append(new Gtk.Label({
-            label: item.title, ellipsize: Pango.EllipsizeMode.END, max_width_chars: 18, css_classes: ['heading'],
+            label: item.title, ellipsize: Pango.EllipsizeMode.END, max_width_chars: 1, css_classes: ['heading'],
         }));
-        box.append(new Gtk.Label({label: meta, css_classes: ['caption', 'dim-label']}));
+        box.append(new Gtk.Label({
+            label: meta, ellipsize: Pango.EllipsizeMode.END, max_width_chars: 1, css_classes: ['caption', 'dim-label'],
+        }));
         this.set_child(box);
     }
 
@@ -281,7 +289,10 @@ class Picker {
         this._navRows = new Map();
         const navigation = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL});
         const addSection = (title, views) => {
-            navigation.append(new Gtk.Label({label: title, xalign: 0, css_classes: ['gpe-section-title']}));
+            navigation.append(new Gtk.Label({
+                label: title, xalign: 0, css_classes: ['caption-heading', 'dim-label'],
+                margin_start: MARGIN, margin_end: MARGIN, margin_top: MARGIN,
+            }));
             const list = new Gtk.ListBox({css_classes: ['navigation-sidebar'], selection_mode: Gtk.SelectionMode.SINGLE});
             for (const [id, icon, label] of views) {
                 const count = new Gtk.Label({css_classes: ['dim-label', 'caption', 'numeric']});
@@ -301,7 +312,10 @@ class Picker {
         addSection(_('Steam Workshop'), [...WORKSHOP_VIEWS, SUBSCRIBED_VIEW]);
         addSection(_('Preferences'), [SETTINGS_VIEW]);
 
-        this._nowPlaying = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 8, css_classes: ['gpe-now']});
+        this._nowPlaying = new Gtk.Box({
+            orientation: Gtk.Orientation.VERTICAL, spacing: MARGIN, css_classes: ['gpe-now'],
+            margin_start: INSET, margin_end: INSET, margin_bottom: INSET,
+        });
 
         const body = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL});
         body.append(new Gtk.ScrolledWindow({child: navigation, vexpand: true, hscrollbar_policy: Gtk.PolicyType.NEVER}));
@@ -329,7 +343,7 @@ class Picker {
         header.pack_end(this._searchEntry);
 
         // Workshop tag filters.
-        this._tagBar = new Gtk.Box({spacing: 8, margin_start: 20, margin_end: 20, margin_top: 12});
+        this._tagBar = new Gtk.Box({spacing: INSET, margin_start: MARGIN, margin_end: MARGIN, margin_top: MARGIN});
         for (const [label, tag] of Object.entries(WORKSHOP_TAGS)) {
             const chip = new Gtk.ToggleButton({label: _(label), css_classes: ['gpe-chip']});
             chip.connect('toggled', () => {
@@ -360,9 +374,7 @@ class Picker {
             valign: Gtk.Align.START,
             min_children_per_line: 2,
             max_children_per_line: 12,
-            column_spacing: 4,
-            row_spacing: 8,
-            margin_start: 14, margin_end: 14, margin_top: 12, margin_bottom: 12,
+            margin_start: INSET, margin_end: INSET, margin_top: INSET, margin_bottom: INSET,
         });
         this._flowBox.set_filter_func(card =>
             this._isWorkshopView || card.item.title.toLowerCase().includes(this._query.toLowerCase()));
@@ -378,7 +390,7 @@ class Picker {
         });
 
         this._moreButton = new Gtk.Button({
-            label: _('Load more'), halign: Gtk.Align.CENTER, css_classes: ['pill'], margin_bottom: 24, visible: false,
+            label: _('Load more'), halign: Gtk.Align.CENTER, css_classes: ['pill'], margin_top: INSET, margin_bottom: MARGIN, visible: false,
         });
         this._moreButton.connect('clicked', () => {
             this._workshopPage++;
@@ -410,8 +422,8 @@ class Picker {
 
     _buildDetailPane() {
         this._detailBox = new Gtk.Box({
-            orientation: Gtk.Orientation.VERTICAL, spacing: 12,
-            margin_start: 20, margin_end: 20, margin_top: 4, margin_bottom: 20,
+            orientation: Gtk.Orientation.VERTICAL, spacing: MARGIN,
+            margin_start: MARGIN, margin_end: MARGIN, margin_top: MARGIN, margin_bottom: MARGIN,
         });
         const header = new Adw.HeaderBar({title_widget: new Adw.WindowTitle({title: _('Details')})});
         this._detailPane = new Adw.ToolbarView({
@@ -683,8 +695,13 @@ class Picker {
             return button;
         };
 
-        if (item.dir)
-            addCaption(`${_(TYPE_LABELS[item.type])} · ${item.workshopId ? _('Steam Workshop') : _('Local wallpaper')}`);
+        const isInUse = Boolean(project) && inUse.has(project.dir);
+        if (item.dir) {
+            addCaption([
+                _(TYPE_LABELS[item.type]), item.workshopId ? _('Steam Workshop') : _('Local wallpaper'),
+                ...isInUse ? [_('In use')] : [],
+            ].join(' · '));
+        }
         else
             addCaption(`${'★'.repeat(item.stars)}${'☆'.repeat(5 - item.stars)}  ${format(_('%s ratings'), item.votes)}`);
 
@@ -692,8 +709,7 @@ class Picker {
         if (project && !isSceneSupported(project)) {
             widgets.push(pill(_('Cannot be applied'), [], null));
             addCaption(_('This scene uses a 3D perspective camera, which the scene renderer cannot show yet.'), ['warning']);
-        } else if (project && inUse.has(project.dir)) {
-            widgets.push(pill(`✓ ${_('In use')}`, [], null));
+        } else if (isInUse) {
             widgets.push(pill(_('Stop wallpaper'), [], () => this._applyToAll('')));
         } else if (project) {
             widgets.push(pill(_('Apply wallpaper'), ['suggested-action'], () => this._applyToAll(project.dir)));
@@ -704,30 +720,39 @@ class Picker {
             }));
             addCaption(_('Subscribing goes through your Steam account; the wallpaper appears in the library once it is downloaded.'), ['dim-label', 'caption']);
         }
+        // Everything else the wallpaper can do, as one list.
+        const actions = new Adw.PreferencesGroup();
+        const addAction = (title, onActivated) => {
+            const row = new Adw.ButtonRow({title});
+            row.connect('activated', onActivated);
+            actions.add(row);
+            if (!widgets.includes(actions))
+                widgets.push(actions);
+        };
         // With several monitors, a wallpaper can also go on just one of them.
         const monitors = this._window.get_display().get_monitors();
         if (project && isSceneSupported(project) && monitors.get_n_items() > 1) {
             for (let i = 0; i < monitors.get_n_items(); i++) {
                 const connector = monitors.get_item(i).get_connector();
-                widgets.push(pill(format(_('Apply to %s only'), connector), [], () => {
+                addAction(format(_('Apply to %s only'), connector), () => {
                     const perMonitor = this._monitorWallpapers();
                     perMonitor[connector] = project.dir;
                     this._settings.set_string('monitor-wallpapers', JSON.stringify(perMonitor));
-                }));
+                });
             }
         }
         if (project && isSceneSupported(project)) {
             const inPlaylist = this._settings.get_strv('playlist').includes(project.dir);
-            widgets.push(pill(inPlaylist ? _('Remove from playlist') : _('Add to playlist'), [], () => {
+            addAction(inPlaylist ? _('Remove from playlist') : _('Add to playlist'), () => {
                 const playlist = this._settings.get_strv('playlist');
                 this._settings.set_strv('playlist', inPlaylist
                     ? playlist.filter(dir => dir !== project.dir) : [...playlist, project.dir]);
-            }));
+            });
         }
         const workshopId = item.dir ? item.workshopId : item.id;
         if (workshopId && project) {
-            widgets.push(pill(_('Open Workshop page in Steam'), [], () =>
-                Gio.AppInfo.launch_default_for_uri(Workshop.steamPageUri(workshopId), null)));
+            addAction(_('Open Workshop page in Steam'), () =>
+                Gio.AppInfo.launch_default_for_uri(Workshop.steamPageUri(workshopId), null));
         }
 
         if (!item.dir) {
@@ -938,7 +963,7 @@ class Picker {
         this._nowPlaying.append(new Gtk.Label({
             label: paused ? _('Paused') : _('Playing'), xalign: 0, css_classes: ['caption', paused ? 'warning' : 'success'],
         }));
-        const info = new Gtk.Box({spacing: 10});
+        const info = new Gtk.Box({spacing: MARGIN});
         const thumbnail = new Gtk.Picture({
             content_fit: Gtk.ContentFit.COVER, width_request: 44, height_request: 44,
             css_classes: ['gpe-thumb'], overflow: Gtk.Overflow.HIDDEN, can_shrink: true,
@@ -948,7 +973,7 @@ class Picker {
         info.append(new Gtk.Label({label: project.title, xalign: 0, hexpand: true, ellipsize: Pango.EllipsizeMode.END, css_classes: ['heading']}));
         this._nowPlaying.append(info);
 
-        const controls = new Gtk.Box({spacing: 6, homogeneous: true});
+        const controls = new Gtk.Box({spacing: INSET, homogeneous: true});
         const control = (icon, tooltip, onClicked) => {
             const button = new Gtk.Button({icon_name: icon, tooltip_text: tooltip});
             button.connect('clicked', onClicked);
@@ -1066,7 +1091,8 @@ export default class PaperEnginePreferences extends ExtensionPreferences {
             GLib.setenv('LANGUAGE', language, true);
 
         window.set_title('Paper Engine');
-        window.set_default_size(1280, 820);
+        // Wide enough for four columns of wallpapers between the two side panes.
+        window.set_default_size(1440, 900);
         window.set_search_enabled(false);
         new Picker(window, settings);
     }
