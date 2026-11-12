@@ -14,8 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install gettext
-        run: sudo apt-get update && sudo apt-get install --yes gettext
+      - name: Install gettext and GJS
+        run: sudo apt-get update && sudo apt-get install --yes gettext gjs gir1.2-soup-3.0
+
+      - name: Run the tests
+        run: gjs -m tests/run.js
 
       - name: Check scripts and settings schema
         run: |
