@@ -1,0 +1,58 @@
+name: Release
+
+# Pushing a tag vX.Y.Z publishes that version: the package is built from the
+# tag and attached to a GitHub release with the notes written for it.
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install gettext and GJS
+        run: sudo apt-get update && sudo apt-get install --yes gettext gjs gir1.2-soup-3.0
+
+      - name: Check that the tag is the version in metadata.json
+        run: |
+          version="$(python3 -c 'import json; print(json.load(open("extension/metadata.json"))["version-name"])')"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match version-name $version" >&2
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Run the tests
+        run: gjs -m tests/run.js
+
+      - name: Build the .deb
+        env:
+          DEB_MAINTAINER: ${{ github.repository_owner }} <${{ github.repository_owner }}@users.noreply.github.com>
+          # A release carries the plain version, without a development suffix.
+          DEB_VERSION_SUFFIX: ""
+        run: ./build-deb.sh
+
+      # The notes come from distribution/release-notes; a version without a
+      # file gets notes generated from the commits. A release that already
+      # exists (made with `gh release create`, which also pushes the tag)
+      # gets the package and the notes put on it.
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          package="dist/gnome-paper-engine_${VERSION}_all.deb"
+          notes="distribution/release-notes/$GITHUB_REF_NAME.md"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$package" --clobber
+            if [ -f "$notes" ]; then
+              gh release edit "$GITHUB_REF_NAME" --notes-file "$notes"
+            fi
+          elif [ -f "$notes" ]; then
+            gh release create "$GITHUB_REF_NAME" "$package" --title "$GITHUB_REF_NAME" --notes-file "$notes"
+          else
+            gh release create "$GITHUB_REF_NAME" "$package" --title "$GITHUB_REF_NAME" --generate-notes
+          fi
