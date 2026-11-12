@@ -548,3 +548,9 @@ msgstr ""
 
 msgid "The scene assets could not be downloaded"
 msgstr ""
+
+msgid "A newer version of Paper Engine is installed"
+msgstr ""
+
+msgid "Restart"
+msgstr ""

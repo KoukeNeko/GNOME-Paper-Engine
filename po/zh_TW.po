@@ -426,3 +426,9 @@ msgstr "這個 Steam 帳號沒有 Wallpaper Engine"
 
 msgid "The scene assets could not be downloaded"
 msgstr "無法下載場景素材"
+
+msgid "A newer version of Paper Engine is installed"
+msgstr "已安裝新版的 Paper Engine"
+
+msgid "Restart"
+msgstr "重新啟動"

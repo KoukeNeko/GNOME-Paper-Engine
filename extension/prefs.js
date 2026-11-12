@@ -11,6 +11,7 @@ import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Gtk from 'gi://Gtk';
 import Pango from 'gi://Pango';
+import System from 'system';
 
 import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
@@ -362,6 +363,26 @@ class Picker {
             this._tagBar.append(chip);
         }
 
+        // This window runs the code it was opened with, also after a newer
+        // version has been installed over it (the process behind it even
+        // outlives the window). Its own files changing is how it finds out.
+        this._updateNotice = new Adw.Banner({
+            title: _('A newer version of Paper Engine is installed'),
+            button_label: _('Restart'),
+        });
+        this._updateNotice.connect('button-clicked', () => this._restart());
+        try {
+            const monitor = Gio.File.new_for_path(this._extensionPath)
+                .monitor_directory(Gio.FileMonitorFlags.WATCH_MOVES, null);
+            monitor.connect('changed', (_monitor, file) => {
+                if (file.get_basename().endsWith('.js'))
+                    this._updateNotice.revealed = true;
+            });
+            this._monitors.push(monitor);
+        } catch (e) {
+            console.warn(`Cannot watch ${this._extensionPath}: ${e.message}`);
+        }
+
         this._sceneNotice = new Adw.Banner();
         this._sceneNotice.connect('button-clicked', () => this._sceneNoticeAction?.());
 
@@ -409,6 +430,7 @@ class Picker {
         this._stack.add_named(this._buildSettingsPage(), 'settings');
 
         const body = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL});
+        body.append(this._updateNotice);
         body.append(this._sceneNotice);
         body.append(this._tagBar);
         body.append(this._stack);
@@ -507,6 +529,16 @@ class Picker {
             this._refreshBadges();
         else if (this._view !== 'settings')
             this._showView(this._view);
+    }
+
+    // Ends the process that hosts this window, which is the only way to load
+    // the new code, and opens the picker again once it is gone.
+    _restart() {
+        const uuid = GLib.path_get_basename(this._extensionPath);
+        GLib.spawn_command_line_async(
+            `sh -c ${GLib.shell_quote(`sleep 1; exec gnome-extensions prefs ${GLib.shell_quote(uuid)}`)}`);
+        this._destroy();
+        System.exit(0);
     }
 
     // ───────── Scene renderer ─────────
