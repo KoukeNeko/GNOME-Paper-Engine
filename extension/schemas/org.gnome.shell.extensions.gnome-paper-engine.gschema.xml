@@ -80,5 +80,9 @@
       <default>'{}'</default>
       <summary>JSON object of per-wallpaper property overrides, keyed by project directory</summary>
     </key>
+    <key name="blur-my-shell-defaults-applied" type="b">
+      <default>false</default>
+      <summary>Whether Blur my Shell has been set to show the windows behind the Dock and the top bar</summary>
+    </key>
   </schema>
 </schemalist>

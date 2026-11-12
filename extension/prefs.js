@@ -16,7 +16,7 @@ import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Ex
 
 import {
     listProjects, loadProject, resolveProperties, findSceneRenderer, findAssetsDir, findWorkshopDirs, isSceneSupported,
-    format,
+    format, blurMyShellSettings, BLUR_MY_SHELL_COMPONENTS,
 } from './library.js';
 import {evaluateCondition} from './conditions.js';
 import {downloadSceneAssets} from './sceneAssets.js';
@@ -35,12 +35,6 @@ const MARGIN = 12;
 // Cards and navigation rows carry this much padding of their own, so their
 // containers are inset by the difference to keep content MARGIN from the edge.
 const INSET = 6;
-
-const BLUR_MY_SHELL_SCHEMA = 'org.gnome.shell.extensions.blur-my-shell';
-const BLUR_MY_SHELL_SCHEMA_DIRS = [
-    GLib.build_filenamev([GLib.get_user_data_dir(), 'gnome-shell/extensions/blur-my-shell@aunetx/schemas']),
-    '/usr/share/gnome-shell/extensions/blur-my-shell@aunetx/schemas',
-];
 
 const STEAM_INSTALL_URI = 'steam://install/431960';
 
@@ -1227,23 +1221,16 @@ class Picker {
         // Blur my Shell blurs the Dock and the top bar either from the wallpaper
         // alone or from everything behind them; with a live wallpaper the
         // difference shows, so its two switches are offered here as well.
-        const blurSchemas = BLUR_MY_SHELL_SCHEMA_DIRS
-            .filter(dir => GLib.file_test(GLib.build_filenamev([dir, 'gschemas.compiled']), GLib.FileTest.EXISTS))
-            .map(dir => Gio.SettingsSchemaSource.new_from_directory(dir, null, false))[0];
-        if (blurSchemas) {
+        const blurTitles = {'dash-to-dock': _('Windows behind the Dock'), 'panel': _('Windows behind the top bar')};
+        const blurRows = BLUR_MY_SHELL_COMPONENTS
+            .map(component => [blurMyShellSettings(component), blurTitles[component]])
+            .filter(([blurSettings]) => blurSettings);
+        if (blurRows.length > 0) {
             const blur = new Adw.PreferencesGroup({title: 'Blur my Shell'});
             page.add(blur);
-            for (const [component, title] of [
-                ['dash-to-dock', _('Windows behind the Dock')],
-                ['panel', _('Windows behind the top bar')],
-            ]) {
-                const schema = blurSchemas.lookup(`${BLUR_MY_SHELL_SCHEMA}.${component}`, false);
-                if (!schema?.has_key('static-blur'))
-                    continue;
+            for (const [blurSettings, title] of blurRows) {
                 const row = new Adw.SwitchRow({title});
-                // A static blur is the one that leaves the windows out.
-                new Gio.Settings({settings_schema: schema}).bind(
-                    'static-blur', row, 'active', Gio.SettingsBindFlags.INVERT_BOOLEAN);
+                blurSettings.bind('static-blur', row, 'active', Gio.SettingsBindFlags.INVERT_BOOLEAN);
                 blur.add(row);
             }
         }

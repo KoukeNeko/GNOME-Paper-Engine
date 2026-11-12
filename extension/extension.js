@@ -14,7 +14,10 @@ import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import {loadProject, resolveProperties, findSceneRenderer, findAssetsDir, format} from './library.js';
+import {
+    loadProject, resolveProperties, findSceneRenderer, findAssetsDir, format, blurMyShellSettings,
+    BLUR_MY_SHELL_COMPONENTS,
+} from './library.js';
 import {BackgroundClones} from './backgroundClones.js';
 
 // Must match TITLE_PREFIX in renderer.js.
@@ -91,11 +94,26 @@ export default class PaperEngineExtension extends Extension {
         this._backgroundClones = new BackgroundClones(
             monitorIndex => this._wallpaperActor(monitorIndex), () => this._queuePauseCheck());
 
+        this._applyBlurMyShellDefaults();
         this._scheduleRotation();
         if (Main.layoutManager._startingUp)
             connect(Main.layoutManager, 'startup-complete', () => this._launch());
         else
             this._launch();
+    }
+
+    // Blur my Shell blurs only the wallpaper behind the Dock and the top bar by
+    // default; over a live wallpaper the windows behind them should show too.
+    // Done once, whenever Blur my Shell is first seen, so a later choice stays.
+    _applyBlurMyShellDefaults() {
+        if (this._settings.get_boolean('blur-my-shell-defaults-applied'))
+            return;
+        const components = BLUR_MY_SHELL_COMPONENTS.map(blurMyShellSettings).filter(Boolean);
+        if (components.length === 0)
+            return;
+        for (const blurSettings of components)
+            blurSettings.set_boolean('static-blur', false);
+        this._settings.set_boolean('blur-my-shell-defaults-applied', true);
     }
 
     disable() {

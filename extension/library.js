@@ -22,6 +22,29 @@ const LOCAL_SCENE_RENDERER = GLib.build_filenamev(
 // Where the picker installs the scene assets it downloads with SteamCMD.
 export const LOCAL_ASSETS_DIR = GLib.build_filenamev([GLib.get_user_data_dir(), 'gnome-paper-engine', 'assets']);
 
+const BLUR_MY_SHELL_SCHEMA = 'org.gnome.shell.extensions.blur-my-shell';
+const BLUR_MY_SHELL_SCHEMA_DIRS = [
+    GLib.build_filenamev([GLib.get_user_data_dir(), 'gnome-shell/extensions/blur-my-shell@aunetx/schemas']),
+    '/usr/share/gnome-shell/extensions/blur-my-shell@aunetx/schemas',
+];
+// Blur my Shell components whose blur can include the windows behind them.
+export const BLUR_MY_SHELL_COMPONENTS = ['dash-to-dock', 'panel'];
+
+/**
+ * Blur my Shell's settings for one of BLUR_MY_SHELL_COMPONENTS, or null when
+ * Blur my Shell is not installed or the component has no `static-blur` key.
+ * A static blur is the one that leaves the windows out.
+ */
+export function blurMyShellSettings(component) {
+    const dir = BLUR_MY_SHELL_SCHEMA_DIRS.find(candidate =>
+        GLib.file_test(GLib.build_filenamev([candidate, 'gschemas.compiled']), GLib.FileTest.EXISTS));
+    if (!dir)
+        return null;
+    const schema = Gio.SettingsSchemaSource.new_from_directory(dir, null, false)
+        .lookup(`${BLUR_MY_SHELL_SCHEMA}.${component}`, false);
+    return schema?.has_key('static-blur') ? new Gio.Settings({settings_schema: schema}) : null;
+}
+
 /** Fills the %s placeholders of a translated string, in order. */
 export function format(template, ...values) {
     return values.reduce((text, value) => text.replace('%s', value), template);
