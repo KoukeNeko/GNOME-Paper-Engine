@@ -75,6 +75,9 @@ for (const [line, expected] of [
     ['Logged in OK', {status: 'downloading'}],
     ['Depot download complete : "/x/steamapps/content/app_431960/depot_431961" (241 files, manifest 1)',
         {depotDir: '/x/steamapps/content/app_431960/depot_431961'}],
+    // As printed when SteamCMD is told to act as the Windows client.
+    ['Depot download complete : "/x/linux32\\steamapps\\content\\app_431960\\depot_431961" (manifest 5060075082323178717) ',
+        {depotDir: '/x/linux32/steamapps/content/app_431960/depot_431961'}],
     ['ERROR (Invalid Password)', {failure: 'sign-in'}],
     ['FAILED (Rate Limit Exceeded)', {failure: 'rate-limit'}],
     ['Depot download failed : No subscription', {failure: 'not-owned'}],

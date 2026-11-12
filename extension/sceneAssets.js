@@ -44,8 +44,10 @@ export function readSteamCmdLine(line) {
     if (lower.includes('confirm') && lower.includes('mobile'))
         return {status: 'confirm'};
     const complete = text.match(/^Depot download complete : "([^"]+)"/i);
+    // Asked to act as the Windows client, SteamCMD also prints the part of
+    // the path below its own folder with backslashes.
     if (complete)
-        return {depotDir: complete[1]};
+        return {depotDir: complete[1].replaceAll('\\', '/')};
     if (lower.includes('logged in ok') || lower.startsWith('downloading depot'))
         return {status: 'downloading'};
     if (/invalid password|invalid login|account logon denied/.test(lower))
