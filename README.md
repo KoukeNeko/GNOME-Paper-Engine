@@ -83,8 +83,9 @@ minutes. Re-run it after a distribution upgrade; delete the directory to
 remove it.
 
 `patches/` holds fixes this project applies on top of linux-wallpaperengine so
-puppet-warp layers (animated characters) are drawn; they are shown in their
-rest pose, since that renderer does not play bone animations.
+puppet-warp layers (animated characters) are drawn, scene scripts run, and
+text layers and media displays work; characters are shown in their rest pose,
+since that renderer does not play bone animations.
 
 Scenes that use a 3D perspective camera (a few of the samples bundled with
 Wallpaper Engine, e.g. *Neon Sunset*) are not supported by
@@ -113,6 +114,15 @@ By default playback pauses while every monitor is covered by a maximized or
 fullscreen window. With several monitors, a wallpaper can be applied to all
 of them or to one. Wallpapers added to the playlist can rotate on a timer
 (*Playback and performance → Playlist*).
+
+A still of the wallpaper is set as the system's desktop background, so that
+is what shows before the wallpaper starts and in anything that reads the
+background; the previous background comes back when the wallpaper is stopped
+(*Playback and performance → Still image as desktop background*).
+
+Scene wallpapers with a media display show what is playing in any MPRIS
+player (title, artist, position, and the cover when the player hands it over
+as a local file).
 
 Web wallpapers that visualise audio get the spectrum of whatever the system
 is playing; it is only captured while such a wallpaper is running.
