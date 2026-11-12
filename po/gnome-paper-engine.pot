@@ -459,3 +459,9 @@ msgstr ""
 
 msgid "Shown while the live wallpaper is not running"
 msgstr ""
+
+msgid "Windows behind the Dock"
+msgstr ""
+
+msgid "Windows behind the top bar"
+msgstr ""

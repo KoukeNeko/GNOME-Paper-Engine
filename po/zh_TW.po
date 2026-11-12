@@ -337,3 +337,9 @@ msgstr "以靜態畫面作為系統桌布"
 
 msgid "Shown while the live wallpaper is not running"
 msgstr "動態桌布未執行時顯示"
+
+msgid "Windows behind the Dock"
+msgstr "Dock 後方顯示視窗"
+
+msgid "Windows behind the top bar"
+msgstr "頂端列後方顯示視窗"
