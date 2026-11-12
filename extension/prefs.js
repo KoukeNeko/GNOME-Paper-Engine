@@ -15,7 +15,7 @@ import Pango from 'gi://Pango';
 import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import {
-    listProjects, loadProject, resolveProperties, findSceneRenderer, findWorkshopDirs, isSceneSupported,
+    listProjects, loadProject, resolveProperties, findSceneRenderer, findWorkshopDirs, isSceneSupported, format,
 } from './library.js';
 import {evaluateCondition} from './conditions.js';
 import * as Workshop from './workshop.js';
@@ -94,11 +94,6 @@ const STYLE = `
 .gpe-now { background-color: alpha(currentColor, 0.06); padding: 12px; }
 .gpe-chip { border-radius: 999px; padding: 2px 12px; min-height: 28px; }
 `;
-
-// Fills the %s placeholders of a translated string, in order.
-function format(template, ...values) {
-    return values.reduce((text, value) => text.replace('%s', value), template);
-}
 
 function stripMarkup(text) {
     return text.replace(/<[^>]*>/g, '').trim();

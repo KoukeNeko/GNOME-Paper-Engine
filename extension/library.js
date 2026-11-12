@@ -20,6 +20,11 @@ const STEAM_ROOTS = [
 const LOCAL_SCENE_RENDERER = GLib.build_filenamev(
     [GLib.get_user_data_dir(), 'gnome-paper-engine', 'bin', 'linux-wallpaperengine']);
 
+/** Fills the %s placeholders of a translated string, in order. */
+export function format(template, ...values) {
+    return values.reduce((text, value) => text.replace('%s', value), template);
+}
+
 function readTextFile(path) {
     try {
         const [, bytes] = GLib.file_get_contents(path);
@@ -115,7 +120,6 @@ export function loadProject(dir) {
     };
 }
 
-/** All wallpaper projects found in the Steam libraries and `extraDirs`. */
 /** Where Steam puts downloaded Workshop wallpapers, one directory per library. */
 export function findWorkshopDirs() {
     return findSteamLibraries().map(library =>
@@ -128,6 +132,12 @@ export function findWorkshopDirs() {
  * (scene.pkg) are assumed to work.
  */
 export function isSceneSupported(project) {
+    // Asked for every card of the picker, over and over: read the scene once.
+    project.sceneSupported ??= readSceneSupported(project);
+    return project.sceneSupported;
+}
+
+function readSceneSupported(project) {
     if (project.type !== 'scene')
         return true;
     let text;
@@ -145,6 +155,7 @@ export function isSceneSupported(project) {
     }
 }
 
+/** All wallpaper projects found in the Steam libraries and `extraDirs`. */
 export function listProjects(extraDirs = []) {
     const containers = [...extraDirs, ...findWorkshopDirs()];
     for (const library of findSteamLibraries()) {
