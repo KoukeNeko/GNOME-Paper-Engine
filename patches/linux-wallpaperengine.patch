@@ -53,6 +53,61 @@ index 189cea2..5463217 100644
  	    );
  
  	    streamLength -= len1;
+diff --git a/src/WallpaperEngine/Data/Model/DynamicValue.cpp b/src/WallpaperEngine/Data/Model/DynamicValue.cpp
+index d41028f..032a01e 100644
+--- a/src/WallpaperEngine/Data/Model/DynamicValue.cpp
++++ b/src/WallpaperEngine/Data/Model/DynamicValue.cpp
+@@ -201,6 +201,8 @@ void DynamicValue::update (const Model::Color& newValue, UpdateSource source) {
+ }
+ 
+ void DynamicValue::update (const DynamicValue& other, UpdateSource source) {
++    const UnderlyingType ownType = this->m_type;
++
+     this->m_vec2 = other.getVec2 ();
+     this->m_vec3 = other.getVec3 ();
+     this->m_vec4 = other.getVec4 ();
+@@ -210,6 +212,15 @@ void DynamicValue::update (const DynamicValue& other, UpdateSource source) {
+     this->m_string = other.getString ();
+     this->m_type = other.getType ();
+ 
++    // a vector bound to a slider stays a vector, with the slider's value in every component: scripts
++    // read its x, y and z
++    const bool wasVector
++	= ownType == UnderlyingType::Vec2 || ownType == UnderlyingType::Vec3 || ownType == UnderlyingType::Vec4;
++
++    if (wasVector && (other.getType () == UnderlyingType::Float || other.getType () == UnderlyingType::Int)) {
++	this->m_type = ownType;
++    }
++
+     if (this->m_condition.has_value () && other.getType () == UnderlyingType::String) {
+ 	const bool boolValue = this->m_condition.value ().condition == other.getString ();
+ 	this->m_vec2 = glm::vec2 (boolValue ? 1.0f : 0.0f);
+diff --git a/src/WallpaperEngine/Data/Model/Object.h b/src/WallpaperEngine/Data/Model/Object.h
+index 8c9f522..7d0078d 100644
+--- a/src/WallpaperEngine/Data/Model/Object.h
++++ b/src/WallpaperEngine/Data/Model/Object.h
+@@ -613,7 +613,8 @@ struct TextData {
+     /** Padding inside the bounding box (x, y). WE writes this either as a "x y" string or as a
+      *  bare scalar meaning both axes; JsonExtensions::get<vec> accepts both forms. */
+     glm::vec2 padding;
+-    // TODO: PARSE LIMITS TOO!
++    /** Width the text is limited to, which scripts read to decide when to scroll it; 0 for none */
++    float maxWidth;
+ };
+ 
+ class Text : public Object, public TextData {
+diff --git a/src/WallpaperEngine/Data/Parsers/ObjectParser.cpp b/src/WallpaperEngine/Data/Parsers/ObjectParser.cpp
+index 51f92f3..e5a424a 100644
+--- a/src/WallpaperEngine/Data/Parsers/ObjectParser.cpp
++++ b/src/WallpaperEngine/Data/Parsers/ObjectParser.cpp
+@@ -143,6 +143,7 @@ TextUniquePtr ObjectParser::parseText (const JSON& it, const Project& project, O
+ 	    .alignment = it.optional ("horizontalalign", it.optional ("alignment", std::string ("center"))),
+ 	    .verticalalign = it.optional ("verticalalign", std::string ("center")),
+ 	    .padding = it.optional ("padding", glm::vec2 (0.0f)),
++	    .maxWidth = it.optional ("maxwidth", 0.0f),
+ 	}
+     );
+ }
 diff --git a/src/WallpaperEngine/Input/Drivers/GLFWMouseInput.cpp b/src/WallpaperEngine/Input/Drivers/GLFWMouseInput.cpp
 index 8ddce13..1061b7b 100644
 --- a/src/WallpaperEngine/Input/Drivers/GLFWMouseInput.cpp
@@ -142,7 +197,7 @@ index 2150c6b..bf61825 100644
      MouseClickStatus m_rightClick = Released;
  };
 diff --git a/src/WallpaperEngine/Render/Objects/CImage.cpp b/src/WallpaperEngine/Render/Objects/CImage.cpp
-index 470e295..c252df9 100644
+index 470e295..51cd4ba 100644
 --- a/src/WallpaperEngine/Render/Objects/CImage.cpp
 +++ b/src/WallpaperEngine/Render/Objects/CImage.cpp
 @@ -535,7 +535,8 @@ void CImage::updatePuppetPositionBuffer (const glm::vec2& size) {
@@ -179,7 +234,20 @@ index 470e295..c252df9 100644
  	}
  
  	pass->setDestination (drawTo);
-@@ -936,12 +947,35 @@ void CImage::render () {
+@@ -916,6 +927,12 @@ void CImage::render () {
+ 	return;
+     }
+ 
++    // Only the image's own material applies its alpha; effects that draw over it afterwards would
++    // bring a fully transparent layer back, so leave such a layer out altogether.
++    if (this->getAlpha () <= 0.0f) {
++	return;
++    }
++
+     glColorMask (true, true, true, true);
+ 
+     // Always update screen transform (handles rotation + parallax dynamically)
+@@ -936,12 +953,35 @@ void CImage::render () {
  
      auto cur = this->m_passes.begin ();
  
@@ -216,7 +284,7 @@ index 470e295..c252df9 100644
      }
  
  #if !NDEBUG
-@@ -949,6 +983,27 @@ void CImage::render () {
+@@ -949,6 +989,27 @@ void CImage::render () {
  #endif /* DEBUG */
  }
  
@@ -244,7 +312,7 @@ index 470e295..c252df9 100644
  const float& CImage::getBrightness () const { return this->m_image.brightness->value->getFloat (); }
  
  const float& CImage::getUserAlpha () const { return this->m_image.alpha->value->getFloat (); }
-@@ -1111,7 +1166,20 @@ void CImage::updateScreenSpacePosition () {
+@@ -1111,7 +1172,20 @@ void CImage::updateScreenSpacePosition () {
      if (this->getScene ().getScene ().camera.parallax.enabled
  	&& !this->getScene ().getContext ().getApp ().getContext ().settings.mouse.disableparallax) {
  	const double parallaxAmount = this->getScene ().getScene ().camera.parallax.amount->value->getFloat ();
@@ -266,7 +334,7 @@ index 470e295..c252df9 100644
  	const glm::vec2* displacement = this->getScene ().getParallaxDisplacement ();
  	const float referenceSize = static_cast<float> (this->getScene ().getWidth ());
  	float x = (depth.x + parallaxAmount) * displacement->x * referenceSize;
-@@ -1121,6 +1189,17 @@ void CImage::updateScreenSpacePosition () {
+@@ -1121,6 +1195,17 @@ void CImage::updateScreenSpacePosition () {
  
      this->m_modelViewProjectionScreen = mvp;
      this->m_modelViewProjectionScreenInverse = glm::inverse (mvp);
@@ -438,11 +506,391 @@ index b056412..d377267 100644
 +    float m_volume = 1.0f;
  };
  } // namespace WallpaperEngine::Render::Objects
+diff --git a/src/WallpaperEngine/Render/Objects/CText.cpp b/src/WallpaperEngine/Render/Objects/CText.cpp
+index 8368634..cd63723 100644
+--- a/src/WallpaperEngine/Render/Objects/CText.cpp
++++ b/src/WallpaperEngine/Render/Objects/CText.cpp
+@@ -1,6 +1,9 @@
+ #include "CText.h"
+ 
++#include <cmath>
++#include <cstdlib>
+ #include <filesystem>
++#include <string_view>
+ #include <vector>
+ 
+ #include <ft2build.h>
+@@ -31,6 +34,58 @@ const std::vector<std::string> kFontCandidates = {
+     "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+ };
+ 
++// Fonts shipped with wallpapers rarely cover more than Latin; song titles and dates need the rest.
++// The Noto CJK collection holds one face per region, picked by the user's language.
++const std::vector<std::string> kFallbackFontCandidates = {
++    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
++    "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
++    "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
++    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
++};
++
++FT_Long fallbackFaceIndex () {
++    const char* lang = std::getenv ("LANG");
++    const std::string_view language = lang != nullptr ? lang : "";
++    const std::pair<std::string_view, FT_Long> regions[] = {
++	{ "ko", 1 }, { "zh_CN", 2 }, { "zh_SG", 2 }, { "zh_TW", 3 }, { "zh_HK", 4 },
++    };
++
++    for (const auto& [prefix, index] : regions) {
++	if (language.starts_with (prefix)) {
++	    return index;
++	}
++    }
++
++    return 0;
++}
++
++std::u32string decodeUtf8 (const std::string& text) {
++    std::u32string result;
++
++    for (size_t i = 0; i < text.size ();) {
++	const auto lead = static_cast<unsigned char> (text[i]);
++	const int length = lead < 0x80 ? 1 : (lead >> 5) == 0x6 ? 2 : (lead >> 4) == 0xE ? 3 : (lead >> 3) == 0x1E ? 4 : 0;
++
++	if (length == 0 || i + length > text.size ()) {
++	    // not UTF-8: show the byte as it is rather than dropping the rest
++	    result.push_back (lead);
++	    i++;
++	    continue;
++	}
++
++	char32_t character = length == 1 ? lead : lead & (0xFF >> (length + 1));
++
++	for (int k = 1; k < length; k++) {
++	    character = (character << 6) | (static_cast<unsigned char> (text[i + k]) & 0x3F);
++	}
++
++	result.push_back (character);
++	i += length;
++    }
++
++    return result;
++}
++
+ const char* kVertexShader = R"glsl(
+ #version 330 core
+ layout(location = 0) in vec2 aPos;
+@@ -82,14 +137,12 @@ CText::CText (Wallpapers::CScene& scene, const Text& text) :
+     this->registerProperty ("visible", *text.visible->value);
+     this->registerProperty ("pointSize", *text.pointSize->value);
+     this->registerProperty ("text", *text.text->value);
+-    this->registerProperty ("pointSize", *text.pointSize->value);
++
++    m_maxWidth.update (text.maxWidth, DynamicValue::UpdateSource::Initialization);
++    this->registerProperty ("maxwidth", m_maxWidth);
+ }
+ 
+ CText::~CText () {
+-    if (m_layerHandle != Scripting::kInvalidLayerHandle) {
+-	this->getScene ().getScriptEngine ().destroyLayer (m_layerHandle);
+-	m_layerHandle = Scripting::kInvalidLayerHandle;
+-    }
+     if (m_vbo != 0) {
+ 	glDeleteBuffers (1, &m_vbo);
+     }
+@@ -102,6 +155,9 @@ CText::~CText () {
+     if (m_texture != 0) {
+ 	glDeleteTextures (1, &m_texture);
+     }
++    if (m_ftFallbackFace != nullptr) {
++	FT_Done_Face (m_ftFallbackFace);
++    }
+     if (m_ftFace != nullptr) {
+ 	FT_Done_Face (m_ftFace);
+     }
+@@ -111,14 +167,9 @@ CText::~CText () {
+ }
+ 
+ void CText::setup () {
+-    const bool scripted = m_text.text->value->getScriptSource ().has_value ();
++    // a text that starts out empty is still set up: another layer's script may fill it in later
+     const auto& text = m_text.text->value->getString ();
+ 
+-    // Nothing to render and no script to produce text later → bail.
+-    if (text.empty () && !scripted) {
+-	return;
+-    }
+-
+     if (!initFreeType ()) {
+ 	return;
+     }
+@@ -131,14 +182,10 @@ void CText::setup () {
+     FT_Set_Pixel_Sizes (m_ftFace, 0, static_cast<FT_UInt> (m_lastPixelSize));
+ 
+     buildShader ();
+-    // Scripted text may have an empty placeholder; use a single space so the
+-    // glyph texture has non-zero dimensions until the script produces a value.
++    // An empty text gets a single space, so the glyph texture has non-zero dimensions until there
++    // is something to show.
+     rebuildTextureFrom (text.empty () ? std::string (" ") : text);
+ 
+-    if (scripted) {
+-	initScriptLayer ();
+-    }
+-
+     m_valid = m_texture != 0 && m_program != 0 && m_vao != 0;
+ }
+ 
+@@ -202,30 +249,11 @@ bool CText::loadSystemFont () {
+ }
+ 
+ unsigned int CText::computeEffectivePixelSize () const {
+-    // WE text objects often come with scale ~0.09 that, combined with a modest
+-    // pointsize, would rasterize glyphs to ~2px on screen (invisible). Rasterize
+-    // at higher resolution so that after the model scale is applied in render()
+-    // the on-screen size matches the intended pointsize.
+-    const glm::vec3 initialScale = m_text.scale->value->getVec3 ();
+-    const float avgScale = (initialScale.x + initialScale.y) * 0.5f;
+-    const float compensate = (avgScale > 0.0f && avgScale < 1.0f) ? std::min (1.0f / avgScale, 32.0f) : 1.0f;
+-    return std::max<unsigned int> (1u, static_cast<unsigned int> (m_text.pointSize->value->getFloat () * compensate));
+-}
+-
+-void CText::initScriptLayer () {
+-    const auto& script = m_text.text->value->getScriptSource ();
+-
+-    if (!script.has_value ()) {
+-	return;
+-    }
+-
+-    m_layerHandle = this->getScene ().getScriptEngine ().createLayerScript (
+-	*script, m_text.text->value->getProperties (), m_text.text->value->getString ()
++    // Wallpaper Engine lays text out at 300 dpi: a point is 300/72 scene pixels
++    constexpr float kPixelsPerPoint = 300.0f / 72.0f;
++    return std::max<unsigned int> (
++	1u, static_cast<unsigned int> (std::lround (m_text.pointSize->value->getFloat () * kPixelsPerPoint))
+     );
+-
+-    if (m_layerHandle == Scripting::kInvalidLayerHandle) {
+-	sLog.error ("CText: createLayerScript failed for '", m_text.name, "'");
+-    }
+ }
+ 
+ void CText::rebuildTextureFrom (const std::string& text) {
+@@ -236,16 +264,18 @@ void CText::rebuildTextureFrom (const std::string& text) {
+     // Safe to call repeatedly: GL handles (texture, VAO, VBO) are reused when
+     // already allocated, so dynamic/scripted text can regenerate the glyph
+     // bitmap every time the rendered string changes without leaking.
+-    FT_GlyphSlot slot = m_ftFace->glyph;
++    const std::u32string characters = decodeUtf8 (text);
+ 
+     int penX = 0;
+     int maxAscent = 0;
+     int maxDescent = 0;
+ 
+-    for (unsigned char c : text) {
+-	if (FT_Load_Char (m_ftFace, static_cast<FT_ULong> (c), FT_LOAD_RENDER) != 0) {
++    for (const char32_t c : characters) {
++	const FT_Face face = this->faceFor (c);
++	if (FT_Load_Char (face, static_cast<FT_ULong> (c), FT_LOAD_RENDER) != 0) {
+ 	    continue;
+ 	}
++	const FT_GlyphSlot slot = face->glyph;
+ 	penX += slot->advance.x >> 6;
+ 	maxAscent = std::max (maxAscent, slot->bitmap_top);
+ 	maxDescent = std::max (maxDescent, static_cast<int> (slot->bitmap.rows) - slot->bitmap_top);
+@@ -256,11 +286,13 @@ void CText::rebuildTextureFrom (const std::string& text) {
+     std::vector<uint8_t> pixels (static_cast<size_t> (width) * height, 0);
+ 
+     penX = 0;
+-    for (unsigned char c : text) {
+-	if (FT_Load_Char (m_ftFace, static_cast<FT_ULong> (c), FT_LOAD_RENDER) != 0) {
++    for (const char32_t c : characters) {
++	const FT_Face face = this->faceFor (c);
++	if (FT_Load_Char (face, static_cast<FT_ULong> (c), FT_LOAD_RENDER) != 0) {
+ 	    continue;
+ 	}
+ 
++	const FT_GlyphSlot slot = face->glyph;
+ 	const auto& bmp = slot->bitmap;
+ 	const int originX = penX + slot->bitmap_left;
+ 	const int originY = maxAscent - slot->bitmap_top;
+@@ -300,6 +332,35 @@ void CText::rebuildTextureFrom (const std::string& text) {
+     uploadQuadVertices ();
+ }
+ 
++FT_Face CText::faceFor (char32_t character) {
++    if (FT_Get_Char_Index (m_ftFace, character) != 0) {
++	return m_ftFace;
++    }
++
++    if (!m_fallbackLoaded) {
++	m_fallbackLoaded = true;
++
++	for (const auto& candidate : kFallbackFontCandidates) {
++	    if (std::filesystem::exists (candidate)
++		&& FT_New_Face (m_ftLibrary, candidate.c_str (), fallbackFaceIndex (), &m_ftFallbackFace) == 0) {
++		break;
++	    }
++	    m_ftFallbackFace = nullptr;
++	}
++    }
++
++    if (m_ftFallbackFace == nullptr || FT_Get_Char_Index (m_ftFallbackFace, character) == 0) {
++	return m_ftFace;
++    }
++
++    FT_Set_Pixel_Sizes (m_ftFallbackFace, 0, static_cast<FT_UInt> (m_lastPixelSize));
++    return m_ftFallbackFace;
++}
++
++glm::vec2 CText::scriptGetSize () const {
++    return m_quadSize * glm::vec2 (m_text.scale->value->getVec3 ());
++}
++
+ void CText::buildShader () {
+     GLuint vs = compileShader (GL_VERTEX_SHADER, kVertexShader);
+     GLuint fs = compileShader (GL_FRAGMENT_SHADER, kFragmentShader);
+@@ -374,24 +435,16 @@ void CText::render () {
+     if (!m_valid) {
+ 	return;
+     }
+-    if (!m_text.visible->value->getBool ()) {
+-	return;
+-    }
+ 
+ #if !NDEBUG
+     std::string str = "Text " + this->getObject ().name + " (" + std::to_string (this->getObject ().id) + ")";
+     glPushDebugGroup (GL_DEBUG_SOURCE_APPLICATION, 0, -1, str.c_str ());
+ #endif /* DEBUG */
+-    std::string renderedText = m_lastRenderedText;
+-    if (m_layerHandle != Scripting::kInvalidLayerHandle) {
+-	auto& se = this->getScene ().getScriptEngine ();
+-	se.tickLayer (
+-	    m_layerHandle, static_cast<double> (getScene ().getTime ()),
+-	    static_cast<double> (getScene ().getDeltaTime ()), static_cast<double> (getScene ().getFps ())
+-	);
+-	const std::string current = se.layerText (m_layerHandle);
+-	renderedText = current.empty () ? std::string (" ") : current;
+-    }
++    // The text's script runs with every other property script of the scene (it was queued when the
++    // property was registered), which is what gives it thisScene, thisLayer and the media events;
++    // a text without a script may be written by the script of another layer.
++    const std::string& current = m_text.text->value->getString ();
++    const std::string renderedText = current.empty () ? std::string (" ") : current;
+ 
+     const unsigned int pixelSize = computeEffectivePixelSize ();
+     if (pixelSize != m_lastPixelSize) {
+@@ -402,25 +455,45 @@ void CText::render () {
+ 	rebuildTextureFrom (renderedText);
+     }
+ 
++    // a hidden text is still laid out: scripts measure hidden copies of a text to fit the shown one
++    if (!m_text.visible->value->getBool ()) {
++#if !NDEBUG
++	glPopDebugGroup ();
++#endif /* DEBUG */
++	return;
++    }
++
+     const glm::vec4 color = m_text.color->value->getVec4 ();
+     const float alpha = m_text.alpha->value->getFloat ();
+     const glm::vec3 scale = m_text.scale->value->getVec3 ();
+     const glm::vec3 origin = m_text.origin->value->getVec3 ();
+ 
+-    // WE uses a Y-down coordinate system (origin at top-left, y increases downward).
+-    // The final FBO is presented to screen with vflip=true on Wayland/GLFW, which maps
+-    // GL y- to screen top and GL y+ to screen bottom. This effectively inverts Y again,
+-    // so we need: gl_y = origin.y - scene_h/2  (not the CImage-style scene_h/2 - origin.y).
+-    // CImage pre-compensates for X11 (no vflip) and gets corrected by the Wayland vflip.
+-    // CText renders with direct vflip-aware coordinates.
++    // Origins are measured from the bottom left of the scene, like those of images. The frame is
++    // presented flipped, so further up in the scene is a smaller y here, and +y is down on screen.
+     const float scene_w = getScene ().getCamera ().getWidth ();
+     const float scene_h = getScene ().getCamera ().getHeight ();
+-    const glm::vec3 gl_origin = {
++    glm::vec3 gl_origin = {
+ 	origin.x - scene_w * 0.5f,
+-	origin.y - scene_h * 0.5f,
++	scene_h * 0.5f - origin.y,
+ 	origin.z,
+     };
+ 
++    // the origin is the point the text is aligned to: left-aligned text starts there, right-aligned
++    // text ends there, and likewise from top to bottom
++    const glm::vec2 halfSize = m_quadSize * 0.5f * glm::vec2 (scale);
++
++    if (m_text.alignment == "left") {
++	gl_origin.x += halfSize.x;
++    } else if (m_text.alignment == "right") {
++	gl_origin.x -= halfSize.x;
++    }
++
++    if (m_text.verticalalign == "top") {
++	gl_origin.y += halfSize.y;
++    } else if (m_text.verticalalign == "bottom") {
++	gl_origin.y -= halfSize.y;
++    }
++
+     glm::mat4 model = glm::translate (glm::mat4 (1.0f), gl_origin);
+     model = glm::scale (model, scale);
+ 
+diff --git a/src/WallpaperEngine/Render/Objects/CText.h b/src/WallpaperEngine/Render/Objects/CText.h
+index 06c413f..8f64dac 100644
+--- a/src/WallpaperEngine/Render/Objects/CText.h
++++ b/src/WallpaperEngine/Render/Objects/CText.h
+@@ -45,6 +45,9 @@ public:
+     void setup () override;
+     void render () override;
+ 
++    /** The extent of the text as laid out, which scripts measure to fit or scroll it */
++    [[nodiscard]] glm::vec2 scriptGetSize () const override;
++
+ private:
+     // Rebuilds the glyph texture (and matching quad VBO) from the given string.
+     // Reuses existing GL handles if already allocated, so this is safe to call
+@@ -58,15 +61,18 @@ private:
+     bool loadEmbeddedFont ();
+     bool loadSystemFont ();
+     unsigned int computeEffectivePixelSize () const;
+-    void initScriptLayer ();
++    // The face to draw a character with: the layer's font, or a system font for what it lacks.
++    FT_Face faceFor (char32_t character);
+ 
+     const Text& m_text;
+     std::string m_lastRenderedText;
+     unsigned int m_lastPixelSize = 0;
+-    Scripting::ScriptLayerHandle m_layerHandle = Scripting::kInvalidLayerHandle;
+ 
+     FT_Library m_ftLibrary = nullptr;
+     FT_Face m_ftFace = nullptr;
++    FT_Face m_ftFallbackFace = nullptr;
++    bool m_fallbackLoaded = false;
++    DynamicValue m_maxWidth;
+     std::vector<uint8_t> m_fontData;
+ 
+     GLuint m_texture = 0;
 diff --git a/src/WallpaperEngine/Render/Objects/Effects/CPass.cpp b/src/WallpaperEngine/Render/Objects/Effects/CPass.cpp
-index e93c293..b0d31b8 100644
+index e93c293..fdc52fc 100644
 --- a/src/WallpaperEngine/Render/Objects/Effects/CPass.cpp
 +++ b/src/WallpaperEngine/Render/Objects/Effects/CPass.cpp
-@@ -878,6 +878,7 @@ void CPass::setupUniforms () {
+@@ -857,11 +857,12 @@ void CPass::setupUniforms () {
+     this->addUniform ("g_LightAmbientColor", sceneData.colors.ambient->value->getVec3 ());
+     this->addUniform ("g_LightSkylightColor", sceneData.colors.skylight->value->getVec3 ());
+     // register variables like brightness and alpha with some default value
+-    this->addUniform ("g_Brightness", renderable.getBrightness ());
+-    this->addUniform ("g_UserAlpha", renderable.getUserAlpha ());
+-    this->addUniform ("g_Alpha", renderable.getAlpha ());
+-    this->addUniform ("g_Color", renderable.getColor ());
+-    this->addUniform ("g_Color4", renderable.getColor4 ());
++    // by address: scripts and user properties change these while the wallpaper runs
++    this->addUniform ("g_Brightness", &renderable.getBrightness ());
++    this->addUniform ("g_UserAlpha", &renderable.getUserAlpha ());
++    this->addUniform ("g_Alpha", &renderable.getAlpha ());
++    this->addUniform ("g_Color", &renderable.getColor ());
++    this->addUniform ("g_Color4", &renderable.getColor4 ());
+     if (!this->m_uniforms.contains ("g_CompositeColor")) {
+ 	this->addUniform ("g_CompositeColor", renderable.getCompositeColor ());
+     }
+@@ -878,6 +879,7 @@ void CPass::setupUniforms () {
      this->addUniform ("g_ViewProjectionMatrix", &this->m_viewProjectionMatrix);
      this->addUniform ("g_PointerPosition", scene.getMousePosition ());
      this->addUniform ("g_PointerPositionLast", scene.getMousePositionLast ());
@@ -506,21 +954,22 @@ index 9e12f3f..128bed8 100644
      std::shared_ptr<const CFBO> _rt_8FrameBuffer = nullptr;
      std::shared_ptr<const CFBO> _rt_Bloom = nullptr;
 diff --git a/src/WallpaperEngine/Scripting/Adapters/ScriptableObjectAdapter.cpp b/src/WallpaperEngine/Scripting/Adapters/ScriptableObjectAdapter.cpp
-index ced542b..3d4fe43 100644
+index ced542b..8541fed 100644
 --- a/src/WallpaperEngine/Scripting/Adapters/ScriptableObjectAdapter.cpp
 +++ b/src/WallpaperEngine/Scripting/Adapters/ScriptableObjectAdapter.cpp
-@@ -1,8 +1,10 @@
+@@ -1,8 +1,11 @@
  #include "ScriptableObjectAdapter.h"
  
 +#include <string_view>
  #include <utility>
  
  #include "WallpaperEngine/Data/Utils/ScopeGuard.h"
++#include "WallpaperEngine/Logging/Log.h"
 +#include "WallpaperEngine/Render/Wallpapers/CScene.h"
  #include "WallpaperEngine/Scripting/ScriptEngine.h"
  #include "WallpaperEngine/Scripting/ScriptableObject.h"
  
-@@ -20,13 +22,109 @@ struct OpaqueScriptableObjectAdapter {
+@@ -20,13 +23,131 @@ struct OpaqueScriptableObjectAdapter {
  
  void scriptableobject_finalizer (JSRuntime* rt, JSValueConst val);
  
@@ -608,6 +1057,27 @@ index ced542b..3d4fe43 100644
 +    return JS_Eval (ctx, source, sizeof (source) - 1, "<texture-animation>", JS_EVAL_TYPE_GLOBAL);
 +}
 +
++// Timeline animations are not played. Scripts typically hide a layer and then play its fade-in, so
++// playing one goes straight to where it ends: the alpha the layer was authored with.
++JSValue layer_get_animation (JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
++    static const char source[]
++	= "(function (layer, alpha) { return { rate: 1, fps: 0, frameCount: 1, duration: 0,"
++	  " play() { layer.alpha = alpha; }, pause() {}, stop() {}, isPlaying() { return false; },"
++	  " getFrame() { return 0; }, setFrame() {} }; })";
++    const auto* layer = layerOf (this_val);
++    JSValue factory = JS_Eval (ctx, source, sizeof (source) - 1, "<animation>", JS_EVAL_TYPE_GLOBAL);
++    JSValue args[] = {
++	JS_DupValue (ctx, this_val),
++	JS_NewFloat64 (ctx, layer != nullptr ? layer->object.scriptGetAuthoredAlpha () : 1.0),
++    };
++    JSValue animation = JS_Call (ctx, factory, JS_UNDEFINED, 2, args);
++
++    JS_FreeValue (ctx, args[0]);
++    JS_FreeValue (ctx, args[1]);
++    JS_FreeValue (ctx, factory);
++    return animation;
++}
++
 +const std::pair<const char*, JSCFunction*> layerMethods[] = {
 +    { "play", layer_play },
 +    { "pause", layer_pause },
@@ -616,6 +1086,7 @@ index ced542b..3d4fe43 100644
 +    { "getChildren", layer_get_children },
 +    { "getParent", layer_get_parent },
 +    { "getTextureAnimation", layer_get_texture_animation },
++    { "getAnimation", layer_get_animation },
 +};
 +} // namespace
 +
@@ -631,7 +1102,7 @@ index ced542b..3d4fe43 100644
      }
  
      const char* name = JS_AtomToCString (ctx, atom);
-@@ -37,14 +135,36 @@ JSValue scriptableobject_property_get (JSContext* ctx, JSValueConst obj_val, JSA
+@@ -37,14 +158,36 @@ JSValue scriptableobject_property_get (JSContext* ctx, JSValueConst obj_val, JSA
  
      ScopeGuard guard ([=] { JS_FreeCString (ctx, name); });
  
@@ -658,13 +1129,13 @@ index ced542b..3d4fe43 100644
 +	    return JS_NewCFunction (ctx, method, methodName, 0);
 +	}
 +    }
- 
--	return container->adapter.getEngine ().dynamicToJs (property);
--    } catch (const std::exception& e) {
++
 +    // find the property inside, otherwise return undefined
 +    const auto& properties = container->object.getProperties ();
 +    const auto property = properties.find (name);
-+
+ 
+-	return container->adapter.getEngine ().dynamicToJs (property);
+-    } catch (const std::exception& e) {
 +    if (property == properties.end ()) {
  	return JS_UNDEFINED;
      }
@@ -673,7 +1144,7 @@ index ced542b..3d4fe43 100644
  }
  
  int scriptableobject_property_set (
-@@ -55,7 +175,7 @@ int scriptableobject_property_set (
+@@ -55,7 +198,7 @@ int scriptableobject_property_set (
      auto* container = static_cast<OpaqueScriptableObjectAdapter*> (JS_GetAnyOpaque (obj_val, &classId));
  
      if (!container || container->magic != SCRIPTABLE_OPAQUE_MAGIC) {
@@ -682,7 +1153,7 @@ index ced542b..3d4fe43 100644
      }
  
      const char* name = JS_AtomToCString (ctx, atom);
-@@ -64,11 +184,31 @@ int scriptableobject_property_set (
+@@ -64,11 +207,31 @@ int scriptableobject_property_set (
  	return -1;
      }
  
@@ -716,7 +1187,7 @@ index ced542b..3d4fe43 100644
      this->registerType (
  	{
  	    .class_name = m_name.c_str (),
-@@ -93,7 +233,7 @@ void scriptableobject_finalizer (JSRuntime* rt, JSValueConst val) {
+@@ -93,7 +256,7 @@ void scriptableobject_finalizer (JSRuntime* rt, JSValueConst val) {
  
      const auto* container = static_cast<OpaqueScriptableObjectAdapter*> (JS_GetAnyOpaque (val, &classId));
  
@@ -725,7 +1196,7 @@ index ced542b..3d4fe43 100644
  	return;
      }
  
-@@ -102,4 +242,13 @@ void scriptableobject_finalizer (JSRuntime* rt, JSValueConst val) {
+@@ -102,4 +265,13 @@ void scriptableobject_finalizer (JSRuntime* rt, JSValueConst val) {
  
  JSValue ScriptableObjectAdapter::instantiate (DynamicValue& value) {
      throw std::runtime_error ("Cannot create a ScriptableObject instance from a DynamicValue");
@@ -931,10 +1402,17 @@ index b8399fa..88cc276 100644
  	JS_PROP_ENUMERABLE
      );
 diff --git a/src/WallpaperEngine/Scripting/ScriptEngine.cpp b/src/WallpaperEngine/Scripting/ScriptEngine.cpp
-index b4ff048..6b0c7b8 100644
+index b4ff048..e2fb0a0 100644
 --- a/src/WallpaperEngine/Scripting/ScriptEngine.cpp
 +++ b/src/WallpaperEngine/Scripting/ScriptEngine.cpp
-@@ -12,6 +12,9 @@
+@@ -6,12 +6,16 @@
+ #include "Modules/ScriptModule.h"
+ #include "ScriptPropertiesObject.h"
+ #include "ScriptableObject.h"
++#include "WallpaperEngine/Data/Model/Property.h"
+ #include "WallpaperEngine/Audio/AudioContext.h"
+ #include "WallpaperEngine/Audio/Drivers/Recorders/PlaybackRecorder.h"
+ #include "WallpaperEngine/Data/Utils/ScopeGuard.h"
  #include "WallpaperEngine/Logging/Log.h"
  #include "WallpaperEngine/Render/CObject.h"
  #include "WallpaperEngine/Render/Objects/CSound.h"
@@ -944,7 +1422,32 @@ index b4ff048..6b0c7b8 100644
  #include "WallpaperEngine/Render/Wallpapers/CScene.h"
  #include "WallpaperEngine/Scripting/Builtins.generated.h"
  #include "quickjs.h"
-@@ -228,8 +231,6 @@ ScriptEngine::ScriptEngine (Wallpapers::CScene& scene, Media::MediaSource& media
+@@ -135,7 +139,8 @@ static void jsToDynamicValue (JSContext* ctx, JSValue val, DynamicValue& source)
+ 
+     if (tag == JS_TAG_STRING) {
+ 	const char* str = JS_ToCString (ctx, val);
+-	source.update (str == nullptr ? "" : str, DynamicValue::UpdateSource::Script);
++	// as a std::string: a bare character pointer would pick the boolean overload
++	source.update (std::string (str == nullptr ? "" : str), DynamicValue::UpdateSource::Script);
+ 	JS_FreeCString (ctx, str);
+ 	return;
+     }
+@@ -167,11 +172,14 @@ static void jsToDynamicValue (JSContext* ctx, JSValue val, DynamicValue& source)
+ 	    return;
+ 	}
+ 
++	JS_ToFloat64 (ctx, &zVal, z);
++
+ 	if (!JS_IsNumber (w)) {
+ 	    source.update (glm::vec3 (xVal, yVal, zVal), DynamicValue::UpdateSource::Script);
+ 	    return;
+ 	}
+ 
++	JS_ToFloat64 (ctx, &wVal, w);
+ 	source.update (glm::vec4 (xVal, yVal, zVal, wVal), DynamicValue::UpdateSource::Script);
+     }
+ }
+@@ -228,8 +236,6 @@ ScriptEngine::ScriptEngine (Wallpapers::CScene& scene, Media::MediaSource& media
      this->m_modules.emplace (wecolor->getName (), std::move (wecolor));
  
      JS_SetModuleLoaderFunc (this->m_runtime, nullptr, scriptengine_module_loader, this);
@@ -953,7 +1456,7 @@ index b4ff048..6b0c7b8 100644
      // add engine to the global
      JS_DefinePropertyValueStr (
  	this->m_context, this->m_globalThis, "engine", this->m_engineObject->getInstance (), JS_PROP_ENUMERABLE
-@@ -246,6 +247,8 @@ ScriptEngine::ScriptEngine (Wallpapers::CScene& scene, Media::MediaSource& media
+@@ -246,6 +252,8 @@ ScriptEngine::ScriptEngine (Wallpapers::CScene& scene, Media::MediaSource& media
      JS_DefinePropertyValueStr (
  	this->m_context, this->m_globalThis, "shared", JS_NewObject (this->m_context), JS_PROP_ENUMERABLE
      );
@@ -962,7 +1465,7 @@ index b4ff048..6b0c7b8 100644
  }
  
  ScriptEngine::~ScriptEngine () {
-@@ -256,6 +259,11 @@ ScriptEngine::~ScriptEngine () {
+@@ -256,6 +264,11 @@ ScriptEngine::~ScriptEngine () {
  	JS_FreeValue (this->m_context, module.module);
      }
  
@@ -974,7 +1477,23 @@ index b4ff048..6b0c7b8 100644
      JS_FreeValue (this->m_context, this->m_globalThis);
  
      this->m_adapters.vec4.reset ();
-@@ -572,46 +580,116 @@ void ScriptEngine::queueScript (const std::string& key, DynamicValue& currentVal
+@@ -284,10 +297,14 @@ static void logJSException (JSContext* ctx, const char* context) {
+     JSValue exc = JS_GetException (ctx);
+     if (!JS_IsNull (exc) && !JS_IsUndefined (exc)) {
+ 	const char* str = JS_ToCString (ctx, exc);
++	JSValue stack = JS_GetPropertyStr (ctx, exc, "stack");
++	const char* trace = JS_IsString (stack) ? JS_ToCString (ctx, stack) : nullptr;
+ 	if (str) {
+-	    sLog.error ("ScriptEngine [", context, "]: ", str);
++	    sLog.error ("ScriptEngine [", context, "]: ", str, trace ? "\n" : "", trace ? trace : "");
+ 	    JS_FreeCString (ctx, str);
+ 	}
++	JS_FreeCString (ctx, trace);
++	JS_FreeValue (ctx, stack);
+     }
+     JS_FreeValue (ctx, exc);
+ }
+@@ -572,46 +589,118 @@ void ScriptEngine::queueScript (const std::string& key, DynamicValue& currentVal
  	return;
      }
  
@@ -1094,6 +1613,8 @@ index b4ff048..6b0c7b8 100644
 +
 +    if (module.object != nullptr) {
 +	JS_SetPropertyStr (this->m_context, this->m_globalThis, "thisLayer", this->getLayerObject (*module.object));
++	// what a script is attached to; for the scripts of a layer's own properties that is the layer
++	JS_SetPropertyStr (this->m_context, this->m_globalThis, "thisObject", this->getLayerObject (*module.object));
 +    }
 +}
 +
@@ -1109,7 +1630,7 @@ index b4ff048..6b0c7b8 100644
  }
  
  void ScriptEngine::tick () {
-@@ -622,7 +700,24 @@ void ScriptEngine::tick () {
+@@ -622,7 +711,41 @@ void ScriptEngine::tick () {
  
      // run all update methods
      for (auto& module : this->m_scriptModules | std::views::values) {
@@ -1131,15 +1652,37 @@ index b4ff048..6b0c7b8 100644
 +
 +	    JS_FreeValue (this->m_context, initResult);
 +	    JS_FreeValue (this->m_context, initArgs[0]);
++
++	    // scripts take the wallpaper's options from this call, once at the start with all of them
++	    JSValue userProperties = JS_NewObject (this->m_context);
++
++	    for (const auto& [name, property] : this->m_scene.getScene ().project.properties) {
++		JS_SetPropertyStr (this->m_context, userProperties, name.c_str (), this->dynamicToJs (*property));
++	    }
++
++	    JSValue applyArgs[] = { userProperties };
++	    JSValue applyResult = this->call (module.module, 1, applyArgs, "applyUserProperties");
++
++	    if (JS_IsException (applyResult)) {
++		this->report (module, "applyUserProperties");
++	    }
++
++	    JS_FreeValue (this->m_context, applyResult);
++	    JS_FreeValue (this->m_context, userProperties);
 +	}
  
  	JSValue args[] = { this->dynamicToJs (module.value) };
  	JSValue result = this->call (module.module, 1, args, "update");
-@@ -632,11 +727,111 @@ void ScriptEngine::tick () {
+@@ -632,16 +755,139 @@ void ScriptEngine::tick () {
  	});
  
  	if (JS_IsException (result)) {
 +	    this->report (module, "update");
++	    continue;
++	}
++
++	// a script without update (), or one that returns nothing, leaves the value as it is
++	if (JS_IsUndefined (result)) {
  	    continue;
  	}
  
@@ -1148,6 +1691,10 @@ index b4ff048..6b0c7b8 100644
 +
 +    this->dispatchCursorEvents ();
 +
++    // the player was looked up before any script existed: tell the scripts where it stands once
++    if (!this->m_notifiedMedia.has_value ()) {
++	this->notifyMediaUpdate (this->m_mediaSource.getMediaInfo ());
++    }
 +}
 +
 +void ScriptEngine::dispatchCursorEvents () {
@@ -1247,8 +1794,78 @@ index b4ff048..6b0c7b8 100644
  }
  
  void ScriptEngine::notifyMediaUpdate (const Media::MediaSource::MediaInfo& media) {
+     JSContext* ctx = this->m_context;
+ 
++    // The source reports every poll of the playback position. Scripts restart their animations on an
++    // event (a title being typed out, a cover fading in), so each one is sent only when its own data
++    // changed.
++    const auto& last = this->m_notifiedMedia;
++    const bool propertiesChanged
++	= !last || last->title != media.title || last->artist != media.artist || last->album != media.album;
++    const bool playbackChanged = !last || last->playbackState != media.playbackState;
++    const bool timelineChanged = !last || last->position != media.position || last->duration != media.duration;
++    const bool thumbnailChanged = !last || last->url != media.url;
++    this->m_notifiedMedia = media;
++
++    // MPRIS counts in microseconds, scripts in seconds
++    constexpr double kMicroseconds = 1'000'000.0;
++
+     DynamicValue primaryColorValue (glm::vec3 (0.12f, 0.12f, 0.12f));
+     DynamicValue secondaryColorValue (glm::vec3 (0.0f, 0.0f, 0.0f));
+     DynamicValue tertiaryColorValue (glm::vec3 (0.25f, 0.25f, 0.25f));
+@@ -666,8 +912,8 @@ void ScriptEngine::notifyMediaUpdate (const Media::MediaSource::MediaInfo& media
+ 
+     JSValue mediaTimelineEvent = JS_NewObject (ctx);
+ 
+-    JS_SetPropertyStr (ctx, mediaTimelineEvent, "position", JS_NewFloat64 (ctx, media.position));
+-    JS_SetPropertyStr (ctx, mediaTimelineEvent, "duration", JS_NewFloat64 (ctx, media.duration));
++    JS_SetPropertyStr (ctx, mediaTimelineEvent, "position", JS_NewFloat64 (ctx, media.position / kMicroseconds));
++    JS_SetPropertyStr (ctx, mediaTimelineEvent, "duration", JS_NewFloat64 (ctx, media.duration / kMicroseconds));
+ 
+     JSValue mediaThumbnailEvent = JS_NewObject (ctx);
+ 
+@@ -683,16 +929,29 @@ void ScriptEngine::notifyMediaUpdate (const Media::MediaSource::MediaInfo& media
+     JSValue mediaThumbnailArgs[] = { mediaThumbnailEvent };
+ 
+     for (auto& module : this->m_scriptModules | std::views::values) {
+-	// call all methods
+-	JSValue result1 = this->call (module.module, 1, propertiesArgs, "mediaPropertiesChanged");
+-	JSValue result2 = this->call (module.module, 1, playbackArgs, "mediaPlaybackChanged");
+-	JSValue result3 = this->call (module.module, 1, mediaTimelineArgs, "mediaTimelineChanged");
+-	JSValue result4 = this->call (module.module, 1, mediaThumbnailArgs, "mediaThumbnailChanged");
+-
+-	JS_FreeValue (ctx, result1);
+-	JS_FreeValue (ctx, result2);
+-	JS_FreeValue (ctx, result3);
+-	JS_FreeValue (ctx, result4);
++	// the handlers use thisLayer like any other function of the script
++	this->enter (module);
++
++	const std::tuple<bool, const char*, JSValue*> handlers[] = {
++	    { propertiesChanged, "mediaPropertiesChanged", propertiesArgs },
++	    { playbackChanged, "mediaPlaybackChanged", playbackArgs },
++	    { timelineChanged, "mediaTimelineChanged", mediaTimelineArgs },
++	    { thumbnailChanged, "mediaThumbnailChanged", mediaThumbnailArgs },
++	};
++
++	for (const auto& [changed, name, args] : handlers) {
++	    if (!changed) {
++		continue;
++	    }
++
++	    JSValue result = this->call (module.module, 1, args, name);
++
++	    if (JS_IsException (result)) {
++		this->report (module, name);
++	    }
++
++	    JS_FreeValue (ctx, result);
++	}
+     }
+ 
+     // free all created objects as we don't keep a ref to them anymore
 diff --git a/src/WallpaperEngine/Scripting/ScriptEngine.h b/src/WallpaperEngine/Scripting/ScriptEngine.h
-index 8fba5b7..7944c86 100644
+index 8fba5b7..e84a3b1 100644
 --- a/src/WallpaperEngine/Scripting/ScriptEngine.h
 +++ b/src/WallpaperEngine/Scripting/ScriptEngine.h
 @@ -47,6 +47,14 @@ public:
@@ -1279,7 +1896,7 @@ index 8fba5b7..7944c86 100644
  
      /**
       * Evaluate a WallpaperEngine script's update() function.
-@@ -162,6 +176,22 @@ private:
+@@ -162,12 +176,30 @@ private:
      std::map<std::string, LoadedModule> m_scriptModules = {};
  
      LoadedModule* m_runningModule = nullptr;
@@ -1302,6 +1919,14 @@ index 8fba5b7..7944c86 100644
  
      ScriptLayerHandle m_nextLayerId = 1;
      bool m_layerRegistryReady = false;
+     std::map<ScriptLayerHandle, bool> m_layerInitialized;
+     bool m_builtinsInstalled = false;
+     Media::MediaSource& m_mediaSource;
++    /** What scripts were last told about the media player, to tell them only what changed */
++    std::optional<Media::MediaSource::MediaInfo> m_notifiedMedia;
+     std::function<void ()> m_unregisterMediaUpdateCallback;
+     std::function<void ()> m_unregisterAlbumArtUpdateCallback;
+ 
 diff --git a/src/WallpaperEngine/Scripting/ScriptPropertiesObject.cpp b/src/WallpaperEngine/Scripting/ScriptPropertiesObject.cpp
 index f25e788..c889c05 100644
 --- a/src/WallpaperEngine/Scripting/ScriptPropertiesObject.cpp
@@ -1325,10 +1950,22 @@ index f25e788..c889c05 100644
  	),
  	JS_PROP_ENUMERABLE
 diff --git a/src/WallpaperEngine/Scripting/ScriptableObject.cpp b/src/WallpaperEngine/Scripting/ScriptableObject.cpp
-index bfd4be8..31e464d 100644
+index bfd4be8..299821d 100644
 --- a/src/WallpaperEngine/Scripting/ScriptableObject.cpp
 +++ b/src/WallpaperEngine/Scripting/ScriptableObject.cpp
-@@ -16,6 +16,11 @@ ScriptableObject::ScriptableObject (Wallpapers::CScene& scene, const Object& obj
+@@ -11,11 +11,23 @@ using namespace WallpaperEngine::Scripting;
+ ScriptableObject::ScriptableObject (Wallpapers::CScene& scene, const Object& object) : CObject (scene, object) {
+     // register common dynamic values
+     this->registerProperty ("origin", *object.origin->value);
++
++    // images and texts are drawn from a scale, angles and visibility of their own, which they register
++    // themselves; registering the group's here first would leave scripts writing to values nothing reads
++    if (object.is<Image> () || object.is<Text> ()) {
++	return;
++    }
++
+     this->registerProperty ("scale", *object.groupScale->value);
+     this->registerProperty ("angles", *object.groupAngles->value);
      this->registerProperty ("visible", *object.groupVisible->value);
  }
  
@@ -1340,11 +1977,21 @@ index bfd4be8..31e464d 100644
  DynamicValue& ScriptableObject::getProperty (const std::string& name) {
      const auto it = this->m_properties.find (name);
  
+@@ -39,5 +51,9 @@ void ScriptableObject::registerProperty (const std::string& name, DynamicValue&
+ 	return;
+     }
+ 
++    if (name == "alpha") {
++	m_authoredAlpha = value.getFloat ();
++    }
++
+     this->getScene ().getScriptEngine ().queueScript (inserted.first->second.key, inserted.first->second.value, *this);
+ }
 diff --git a/src/WallpaperEngine/Scripting/ScriptableObject.h b/src/WallpaperEngine/Scripting/ScriptableObject.h
-index 3d65893..d0e4d8b 100644
+index 3d65893..6138210 100644
 --- a/src/WallpaperEngine/Scripting/ScriptableObject.h
 +++ b/src/WallpaperEngine/Scripting/ScriptableObject.h
-@@ -15,12 +15,25 @@ public:
+@@ -15,16 +15,32 @@ public:
      };
  
      ScriptableObject (Wallpapers::CScene& scene, const Object& object);
@@ -1367,10 +2014,18 @@ index 3d65893..d0e4d8b 100644
 +    [[nodiscard]] virtual float scriptGetVolume () const { return 1.0f; }
 +    /** The layer's unscaled size in scene units */
 +    [[nodiscard]] virtual glm::vec2 scriptGetSize () const { return { 0.0f, 0.0f }; }
++    /** The alpha the layer was authored with, where its fade animations end up */
++    [[nodiscard]] float scriptGetAuthoredAlpha () const { return m_authoredAlpha; }
 +
  protected:
      void registerProperty (const std::string& name, DynamicValue& value);
  
+ private:
+     std::map<std::string, PropertyEntry> m_properties;
++    float m_authoredAlpha = 1.0f;
+ };
+ }
+\ No newline at end of file
 diff --git a/src/WallpaperEngine/Scripting/resources/builtins.js b/src/WallpaperEngine/Scripting/resources/builtins.js
 index fa05f40..2ad0469 100644
 --- a/src/WallpaperEngine/Scripting/resources/builtins.js
