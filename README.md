@@ -225,33 +225,34 @@ workspaces, and out of the overview, dock and Alt-Tab — the same technique the
 Desktop Icons extension uses, and the wallpaper sits below its icons.
 
 ```mermaid
-flowchart LR
+flowchart TB
     steam[("Steam library<br>Workshop and bundled wallpapers")]
+    workshop(["Steam Workshop page"])
     picker["Picker<br>prefs.js"]
     settings{{"GSettings"}}
     extension["Shell extension<br>extension.js"]
     builtin["Built-in renderer<br>renderer.js · WebKitGTK"]
     scene["Scene renderer<br>linux-wallpaperengine"]
+    mpris(["MPRIS player"])
     windows["Wallpaper windows<br>DESKTOP type, one per monitor"]
     clones["Clones<br>overview · thumbnails · lock screen · blur"]
     still["Still image<br>system desktop background"]
-    workshop(["Steam Workshop page"])
-    mpris(["MPRIS player"])
 
-    steam -- "project.json" --> picker
-    workshop -- "browse and search" --> picker
+    steam --> picker
+    workshop --> picker
     picker -- "wallpaper and options" --> settings
     settings --> extension
     extension -- "video · web" --> builtin
     extension -- "scene" --> scene
-    extension -. "pointer, pause, volume over stdin" .-> builtin
-    extension -. "pointer over stdin" .-> scene
     mpris -. "title, position, cover" .-> scene
     builtin --> windows
     scene --> windows
     windows --> clones
     windows --> still
 ```
+
+The extension also sends the pointer, pause and volume to the renderers over
+their standard input.
 
 - `extension/renderer.js` – GTK 3 + WebKitGTK process for video and web
   wallpapers, one window per monitor, controlled over stdin.
