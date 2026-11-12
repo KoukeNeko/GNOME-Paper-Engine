@@ -28,8 +28,9 @@ read_metadata() {
     python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])' \
         "$SOURCE_DIR/extension/metadata.json" "$1"
 }
-# CI appends a suffix such as ~dev42 for development builds.
-VERSION="$(read_metadata version-name)${DEB_VERSION_SUFFIX:-}"
+# CI appends a suffix such as ~dev42 for development builds. A build made here
+# gets the time instead: apt skips a package whose version it already has.
+VERSION="$(read_metadata version-name)${DEB_VERSION_SUFFIX-+local$(date +%Y%m%d%H%M%S)}"
 SHELL_VERSION="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["shell-version"][0])' \
     "$SOURCE_DIR/extension/metadata.json")"
 MAINTAINER="${DEB_MAINTAINER:-$(git -C "$SOURCE_DIR" config user.name) <$(git -C "$SOURCE_DIR" config user.email)>}"

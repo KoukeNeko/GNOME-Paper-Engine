@@ -35,6 +35,8 @@ for tool in git cmake ninja g++ apt-get dpkg; do
 done
 
 echo "==> Downloading build dependencies (nothing is installed system-wide)"
+# Packages from an earlier run (an older release, perhaps) must not be unpacked with the new ones.
+rm -rf "$BUILD_DIR/debs"
 mkdir -p "$BUILD_DIR/debs/partial"
 apt-get install --yes --download-only --no-install-recommends \
     -o Debug::NoLocking=true -o Dir::Cache::archives="$BUILD_DIR/debs" \
