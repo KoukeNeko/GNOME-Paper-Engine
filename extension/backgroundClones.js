@@ -18,8 +18,11 @@ import {RoundedClipEffect} from './roundedClip.js';
 
 export class BackgroundClones {
     /** `getWallpaperActor(monitorIndex)` returns the wallpaper's window actor on a monitor, or null. */
-    constructor(getWallpaperActor) {
+    constructor(getWallpaperActor, onShownChanged) {
         this._getWallpaperActor = getWallpaperActor;
+        this._onShownChanged = onShownChanged;
+        // The clones that stand in for the desktop: those of the workspaces.
+        this._workspaceClones = new Set();
         // Clutter.Clone of the wallpaper, on a copy of the system background → monitor index.
         this._backgrounds = new Map();
         // WorkspaceThumbnail → Clutter.Clone of the wallpaper on its monitor.
@@ -62,6 +65,15 @@ export class BackgroundClones {
         [...this._thumbnails.values()].forEach(clone => clone.destroy());
     }
 
+    /**
+     * Whether a workspace or a workspace thumbnail is showing the wallpaper
+     * right now, as in the overview and the app grid: the wallpaper is in
+     * view then, whatever windows cover the desktop itself.
+     */
+    isShown() {
+        return [...this._workspaceClones, ...this._thumbnails.values()].some(clone => clone.mapped);
+    }
+
     /** Points every clone at the wallpaper windows there are now. */
     sync() {
         for (const clone of this._backgrounds.keys())
@@ -75,6 +87,7 @@ export class BackgroundClones {
         let clone = this._thumbnails.get(thumbnail);
         if (!clone) {
             clone = new Clutter.Clone();
+            clone.connect('notify::mapped', () => this._onShownChanged());
             clone.connect('destroy', () => this._thumbnails.delete(thumbnail));
             this._thumbnails.set(thumbnail, clone);
             thumbnail._contents.insert_child_below(clone, null);
@@ -106,10 +119,23 @@ export class BackgroundClones {
         backgroundActor.add_child(clone);
         this._syncBackgroundClone(clone);
 
+        // Blur my Shell blurs a clone of the widget the background is in, and
+        // blurs again only when told that its input changes by itself (it
+        // otherwise keeps the last blur while the screen is recorded or
+        // shared, and the wallpaper stands still behind the overview).
+        for (let widget = container; widget; widget = widget.get_parent()) {
+            const outer = widget.get_parent();
+            if (outer?.get_children().some(sibling => sibling instanceof Clutter.Clone && sibling.source === widget))
+                outer._bms_live_input = true;
+        }
+
         // The overview clips the background of a workspace to its work area,
         // with corners that round as the overview opens.
         const workspaceBackground = container.get_parent()?.get_parent();
         if (workspaceBackground instanceof WorkspaceBackground) {
+            this._workspaceClones.add(clone);
+            clone.connect('notify::mapped', () => this._onShownChanged());
+            clone.connect('destroy', () => this._workspaceClones.delete(clone));
             const effect = new RoundedClipEffect();
             clone.add_effect(effect);
             const clip = () => this._clipToWorkArea(workspaceBackground, backgroundActor, effect);

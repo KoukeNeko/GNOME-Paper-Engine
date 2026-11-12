@@ -88,7 +88,8 @@ export default class PaperEngineExtension extends Extension {
         for (const signal of ['showing', 'hidden'])
             connect(Main.overview, signal, () => this._queuePauseCheck());
 
-        this._backgroundClones = new BackgroundClones(monitorIndex => this._wallpaperActor(monitorIndex));
+        this._backgroundClones = new BackgroundClones(
+            monitorIndex => this._wallpaperActor(monitorIndex), () => this._queuePauseCheck());
 
         this._scheduleRotation();
         if (Main.layoutManager._startingUp)
@@ -514,8 +515,9 @@ export default class PaperEngineExtension extends Extension {
         // Behind the lock screen the windows of the session don't cover anything.
         if (Main.sessionMode.isLocked)
             return !this._settings.get_boolean('show-on-lock-screen');
-        // The overview shrinks the windows and shows the wallpaper around them.
-        if (Main.overview.visible)
+        // The overview and the app grid show the wallpaper on their
+        // workspaces, around or instead of the windows that cover it.
+        if (Main.overview.visible || this._backgroundClones.isShown())
             return false;
         return this._isDesktopCovered();
     }
