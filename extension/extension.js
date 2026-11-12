@@ -277,6 +277,9 @@ export default class PaperEngineExtension extends Extension {
                 '--volume', `${this._settings.get_int('volume')}`,
                 // Pausing is driven by this extension instead.
                 '--no-fullscreen-pause',
+                // Muting is the user's setting here. Left on, the renderer mutes itself
+                // whenever any other stream exists, e.g. for as long as a voice chat runs.
+                '--noautomute',
             ];
             if (this._settings.get_boolean('muted'))
                 argv.push('--silent');
