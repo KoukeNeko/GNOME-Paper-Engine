@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2c3d6b"/><stop offset="1" stop-color="#121a35"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="940" cy="320" r="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ff7a59" stop-opacity="0.28"/><stop offset="1" stop-color="#ff7a59" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="coral" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9473"/><stop offset="1" stop-color="#f0553a"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#f4b13c"/></linearGradient>
+    <linearGradient id="cream" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffaf0"/><stop offset="1" stop-color="#f3e6cc"/></linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#52cdc2"/><stop offset="1" stop-color="#2a9690"/></linearGradient>
+    <radialGradient id="sun" cx="0.35" cy="0.35" r="0.8"><stop offset="0" stop-color="#ffa88a"/><stop offset="1" stop-color="#f0553a"/></radialGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3"/></filter>
+    <clipPath id="front"><rect x="34" y="22" width="64" height="76" rx="9"/></clipPath>
+  </defs>
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <rect width="1280" height="640" fill="url(#glow)"/>
+
+  <g transform="translate(930 320) scale(4.5) translate(-64 -64)">
+    <g transform="rotate(-14 64 64)">
+      <rect x="26" y="29" width="64" height="76" rx="9" fill="#000" opacity="0.3" filter="url(#soft)"/>
+      <rect x="26" y="26" width="64" height="76" rx="9" fill="url(#coral)"/>
+      <rect x="26.5" y="26.5" width="63" height="75" rx="8.5" fill="none" stroke="#fff" stroke-opacity="0.35"/>
+    </g>
+    <g transform="rotate(-5 64 64)">
+      <rect x="30" y="27" width="64" height="76" rx="9" fill="#000" opacity="0.3" filter="url(#soft)"/>
+      <rect x="30" y="24" width="64" height="76" rx="9" fill="url(#gold)"/>
+      <rect x="30.5" y="24.5" width="63" height="75" rx="8.5" fill="none" stroke="#fff" stroke-opacity="0.4"/>
+    </g>
+    <g transform="rotate(6 64 64)">
+      <rect x="34" y="25" width="64" height="76" rx="9" fill="#000" opacity="0.35" filter="url(#soft)"/>
+      <rect x="34" y="22" width="64" height="76" rx="9" fill="url(#cream)"/>
+      <g clip-path="url(#front)">
+        <circle cx="78" cy="44" r="8" fill="url(#sun)"/>
+        <path d="M34 78c12-10 22-10 32-2s22 6 32-4v30H34z" fill="url(#teal)"/>
+        <path d="M34 78c12-10 22-10 32-2s22 6 32-4" fill="none" stroke="#fff" stroke-opacity="0.35" stroke-width="1.2"/>
+      </g>
+      <rect x="34.5" y="22.5" width="63" height="75" rx="8.5" fill="none" stroke="#fff" stroke-opacity="0.8"/>
+    </g>
+  </g>
+
+  <g transform="translate(0 -34)" font-family="Inter, 'Noto Sans', 'Ubuntu', 'DejaVu Sans', sans-serif">
+    <text x="84" y="196" font-size="30" font-weight="700" letter-spacing="8" fill="#ff8f6e">GNOME</text>
+    <text x="80" y="304" font-size="112" font-weight="800" letter-spacing="-3" fill="#fff6e5">Paper</text>
+    <text x="80" y="414" font-size="112" font-weight="800" letter-spacing="-3" fill="#fff6e5">Engine</text>
+    <text x="84" y="490" font-size="31" fill="#b9c3e0">Steam Wallpaper Engine wallpapers,</text>
+    <text x="84" y="532" font-size="31" fill="#b9c3e0">live on your GNOME desktop.</text>
+  </g>
+</svg>
