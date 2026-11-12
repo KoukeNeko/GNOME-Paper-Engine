@@ -21,6 +21,8 @@ import {BackgroundClones} from './backgroundClones.js';
 const RENDERER_TITLE_PREFIX = 'gnome-paper-engine-renderer-';
 
 const RELAUNCH_DELAY_MS = 2000;
+// A volume being stepped up or down restarts a scene once, not at every step.
+const VOLUME_RELAUNCH_DELAY_MS = 400;
 // Stop relaunching a renderer that keeps dying, so a broken wallpaper can't
 // turn into a crash loop.
 const MAX_CONSECUTIVE_FAILURES = 5;
@@ -35,9 +37,10 @@ const LOCK_SCREEN_BRIGHTNESS = -0.2;
 const STILL_DELAY_MS = 5000;
 const BACKGROUND_SCHEMA = 'org.gnome.desktop.background';
 const BACKGROUND_KEYS = ['picture-uri', 'picture-uri-dark'];
+const STILL_NAME = 'still.png';
 
 // Settings that only take effect by restarting the renderer.
-const RELAUNCH_KEYS = ['wallpaper', 'monitor-wallpapers', 'fit', 'scene-renderer', 'user-properties', 'muted', 'volume'];
+const RELAUNCH_KEYS = ['wallpaper', 'monitor-wallpapers', 'fit', 'scene-renderer', 'user-properties'];
 
 const SCENE_SCALING = {cover: 'fill', contain: 'fit', fill: 'stretch'};
 
@@ -139,6 +142,15 @@ export default class PaperEngineExtension extends Extension {
             this._scheduleRotation();
         } else if (key === 'system-background') {
             this._scheduleStill();
+        } else if (key === 'muted' || key === 'volume') {
+            this._failures = 0;
+            if (this._relaunchId)
+                GLib.source_remove(this._relaunchId);
+            this._relaunchId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, VOLUME_RELAUNCH_DELAY_MS, () => {
+                this._relaunchId = 0;
+                this._launch();
+                return GLib.SOURCE_REMOVE;
+            });
         } else if (RELAUNCH_KEYS.includes(key)) {
             this._failures = 0;
             this._launch();
@@ -226,12 +238,14 @@ export default class PaperEngineExtension extends Extension {
         // The window's own picture, whatever is in front of it.
         const texture = actor.paint_to_content(null).get_texture();
 
-        const directory = GLib.build_filenamev([GLib.get_user_cache_dir(), 'gnome-paper-engine']);
+        // Not in the cache: the desktop background points at this file for as
+        // long as the option is on, also while the extension is not running.
+        const directory = GLib.build_filenamev([GLib.get_user_data_dir(), 'gnome-paper-engine']);
         GLib.mkdir_with_parents(directory, 0o755);
         // Written under another name first: the shell reloads the background
         // as soon as its file changes, and must not find half a picture.
-        const partial = Gio.File.new_for_path(GLib.build_filenamev([directory, 'still.png.part']));
-        const still = Gio.File.new_for_path(GLib.build_filenamev([directory, 'still.png']));
+        const partial = Gio.File.new_for_path(GLib.build_filenamev([directory, `${STILL_NAME}.part`]));
+        const still = Gio.File.new_for_path(GLib.build_filenamev([directory, STILL_NAME]));
         const stream = partial.replace(null, false, Gio.FileCreateFlags.NONE, null);
         await new Promise((resolve, reject) => {
             Shell.Screenshot.composite_to_stream(texture, 0, 0, -1, -1, 1, null, 0, 0, 1, stream, (_source, result) => {
@@ -261,7 +275,11 @@ export default class PaperEngineExtension extends Extension {
         const previous = this._settings.get_strv('previous-background');
         if (previous.length !== BACKGROUND_KEYS.length)
             return;
-        BACKGROUND_KEYS.forEach((key, index) => this._backgroundSettings.set_string(key, previous[index]));
+        // A background the user picked in the meantime is theirs to keep.
+        BACKGROUND_KEYS.forEach((key, index) => {
+            if (this._backgroundSettings.get_string(key).endsWith(`/gnome-paper-engine/${STILL_NAME}`))
+                this._backgroundSettings.set_string(key, previous[index]);
+        });
         this._settings.set_strv('previous-background', []);
     }
 
@@ -297,7 +315,7 @@ export default class PaperEngineExtension extends Extension {
     _launchProject(dir, monitors) {
         const project = loadProject(dir);
         if (!project) {
-            this._notify(_('No wallpaper project found in %s').replace('%s', dir));
+            this._notify(format(_('No wallpaper project found in %s'), dir));
             return;
         }
 
@@ -315,11 +333,10 @@ export default class PaperEngineExtension extends Extension {
             else if (project.type === 'scene')
                 this._spawnSceneRenderers(project, properties, monitors);
             else
-                this._notify(_('“%s” is a “%s” wallpaper, which is not supported')
-                    .replace('%s', project.title).replace('%s', project.type));
+                this._notify(format(_('“%s” is a “%s” wallpaper, which is not supported'), project.title, project.type));
         } catch (e) {
             console.error(e);
-            this._notify(_('Could not start the wallpaper renderer: %s').replace('%s', e.message));
+            this._notify(format(_('Could not start the wallpaper renderer: %s'), e.message));
         }
     }
 
@@ -586,13 +603,16 @@ export default class PaperEngineExtension extends Extension {
         }
     }
 
+    // Never blocks: a renderer that stopped reading must not stall the compositor.
     _write(renderer, line) {
-        try {
-            renderer.stdin.write_all(`${line}\n`, null);
-        } catch (e) {
-            // The renderer just died; its exit handler deals with that.
-            console.warn(`${this.uuid}: could not write to the renderer: ${e.message}`);
-        }
+        renderer.stdin.write_bytes_async(
+            new TextEncoder().encode(`${line}\n`), GLib.PRIORITY_DEFAULT, null, (stream, result) => {
+                try {
+                    stream.write_bytes_finish(result);
+                } catch (e) {
+                    // The renderer went away; its exit handler deals with that.
+                }
+            });
     }
 
     // Wallpaper windows sit below everything and never get pointer events, so
@@ -636,14 +656,7 @@ export default class PaperEngineExtension extends Extension {
                 line = position;
             else
                 continue;
-            renderer.stdin.write_bytes_async(
-                new TextEncoder().encode(`${line}\n`), GLib.PRIORITY_DEFAULT, null, (stream, result) => {
-                    try {
-                        stream.write_bytes_finish(result);
-                    } catch (e) {
-                        // The renderer went away; its exit handler deals with that.
-                    }
-                });
+            this._write(renderer, line);
         }
     }
 

@@ -163,7 +163,9 @@ rm -rf ~/.local/share/gnome-shell/extensions/gnome-paper-engine@koukeneko.github
        ~/.local/share/applications/gnome-paper-engine.desktop
 ```
 
-Either way the scene renderer stays in your home folder until you delete it:
+Either way the scene renderer stays in your home folder until you delete it.
+The still image used as the desktop background is kept there too, so turn
+that option off (or pick another background) first:
 
 ```bash
 rm -rf ~/.local/share/gnome-paper-engine ~/.cache/gnome-paper-engine
