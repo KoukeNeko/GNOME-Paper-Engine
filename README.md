@@ -7,11 +7,21 @@ It is a GNOME Shell extension with a wallpaper picker. It needs a Wallpaper
 Engine licence on Steam — the wallpapers and the scene assets come from your
 own Steam library; nothing is bundled here.
 
+![A scene wallpaper as the desktop background](docs/desktop.jpg)
+
+![The picker: library and Workshop on the left, wallpapers in the middle, details and options on the right](docs/picker.jpg)
+
+![The overview with windows on several workspaces, each showing the wallpaper](docs/workspaces.jpg)
+
+| The overview and its workspace thumbnails show the wallpaper | A scene's media display, fed by the player that is running |
+| --- | --- |
+| ![Activities overview with the live wallpaper behind it](docs/overview.jpg) | ![A billboard in a scene showing the song, artist, position and cover](docs/media-display.png) |
+
 | Wallpaper type | Rendered by | Status |
 | --- | --- | --- |
 | Video | built-in renderer (WebKitGTK + GStreamer) | works out of the box |
 | Web | built-in renderer (WebKitGTK) | works out of the box; user properties and audio-reactive data supported |
-| Scene | [linux-wallpaperengine](https://github.com/Almamu/linux-wallpaperengine) | needs `setup-scene-renderer.sh`; fidelity is whatever that project supports |
+| Scene | [linux-wallpaperengine](https://github.com/Almamu/linux-wallpaperengine), patched | needs the one-time setup below; most 2D scenes work, with scripts, text, clicks and media displays |
 | Application | — | not supported (Windows executables) |
 
 ## Requirements
@@ -124,6 +134,13 @@ Scene wallpapers with a media display show what is playing in any MPRIS
 player (title, artist, position, and the cover when the player hands it over
 as a local file).
 
+With [Blur my Shell](https://github.com/aunetx/blur-my-shell) installed, its
+blur of the Dock and the top bar can be switched between the wallpaper alone
+and everything behind them from the same settings page.
+
+Web wallpapers are Workshop content, so each one is confined to the files of
+its own folder; it cannot read anything else on the computer.
+
 Web wallpapers that visualise audio get the spectrum of whatever the system
 is playing; it is only captured while such a wallpaper is running.
 
@@ -148,7 +165,11 @@ Desktop Icons extension uses, and the wallpaper sits below its icons.
 - `extension/prefs.js` – the picker and settings window.
 - `extension/workshop.js` – reads the Steam Workshop browse page.
 - `extension/conditions.js` – evaluates when a wallpaper option is shown.
+- `extension/backgroundClones.js` – the wallpaper in the overview, its
+  thumbnails and wherever else a copy of the system background is drawn.
 - `extension/roundedClip.js` – the rounded clip of the wallpaper in the overview.
+- `tests/run.js` – tests for the parsers that read outside content
+  (`gjs -m tests/run.js`).
 - `po/` – translations; `zh_TW.po` is the only one so far.
 
 ## Uninstall
