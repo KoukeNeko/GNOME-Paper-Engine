@@ -120,8 +120,10 @@ is playing; it is only captured while such a wallpaper is running.
 The wallpaper never receives input itself, so the extension forwards the
 pointer position and left clicks that start on the desktop; wallpapers react
 to those as far as their renderer supports it. Behind the lock screen the
-wallpaper keeps playing, slightly dimmed (this can be turned off). It is not
-shown behind the Activities overview.
+wallpaper keeps playing, slightly dimmed (this can be turned off). It is also
+the background of the workspaces and their thumbnails in the Activities
+overview, and it replaces the system background wherever the shell or an
+extension such as Blur my Shell draws a copy of it.
 
 ## How it works
 
@@ -136,6 +138,7 @@ Desktop Icons extension uses, and the wallpaper sits below its icons.
 - `extension/prefs.js` – the picker and settings window.
 - `extension/workshop.js` – reads the Steam Workshop browse page.
 - `extension/conditions.js` – evaluates when a wallpaper option is shown.
+- `extension/roundedClip.js` – the rounded clip of the wallpaper in the overview.
 - `po/` – translations; `zh_TW.po` is the only one so far.
 
 ## Uninstall

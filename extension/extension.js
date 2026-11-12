@@ -10,10 +10,14 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 
+import {BackgroundManager} from 'resource:///org/gnome/shell/ui/background.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
+import {WorkspaceBackground} from 'resource:///org/gnome/shell/ui/workspace.js';
+import {WorkspaceThumbnail} from 'resource:///org/gnome/shell/ui/workspaceThumbnail.js';
+import {Extension, InjectionManager, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {loadProject, resolveProperties, findSceneRenderer, findAssetsDir} from './library.js';
+import {RoundedClipEffect} from './roundedClip.js';
 
 // Must match TITLE_PREFIX in renderer.js.
 const RENDERER_TITLE_PREFIX = 'gnome-paper-engine-renderer-';
@@ -58,6 +62,10 @@ export default class PaperEngineExtension extends Extension {
         this._lockScreenId = 0;
         this._rotationId = 0;
         this._lockScreenClones = new Set();
+        // Clutter.Clone of the wallpaper, on a copy of the system background → monitor index.
+        this._backgroundClones = new Map();
+        // WorkspaceThumbnail → Clutter.Clone of the wallpaper on its monitor.
+        this._thumbnailClones = new Map();
         this._signals = [];
 
         const connect = (object, signal, callback) =>
@@ -74,6 +82,42 @@ export default class PaperEngineExtension extends Extension {
         for (const signal of ['size-changed', 'minimize', 'unminimize', 'map', 'destroy', 'switch-workspace'])
             connect(global.window_manager, signal, () => this._queuePauseCheck());
         connect(global.display, 'restacked', () => this._queuePauseCheck());
+        for (const signal of ['showing', 'hidden'])
+            connect(Main.overview, signal, () => this._queuePauseCheck());
+
+        // The shell (and extensions such as Blur my Shell) draws copies of
+        // the system background where windows are not shown: behind the
+        // overview and its workspaces, behind blurred panels. Each copy gets
+        // a clone of the wallpaper on top. The workspace thumbnails have no
+        // background at all; setPorthole runs when one is built.
+        const extension = this;
+        // Never let the wallpaper break the shell's own code.
+        const guarded = (method, ...args) => {
+            try {
+                method.apply(this, args);
+            } catch (e) {
+                logError(e, 'Paper Engine: wallpaper clone');
+            }
+        };
+        this._injectionManager = new InjectionManager();
+        this._injectionManager.overrideMethod(BackgroundManager.prototype, '_createBackgroundActor',
+            original => function () {
+                const backgroundActor = original.call(this);
+                guarded(extension._addBackgroundClone, backgroundActor);
+                return backgroundActor;
+            });
+        this._injectionManager.overrideMethod(WorkspaceThumbnail.prototype, 'setPorthole',
+            original => function (...args) {
+                original.apply(this, args);
+                guarded(extension._syncThumbnailClone, this);
+            });
+        const addToExisting = actor => {
+            if (actor instanceof Meta.BackgroundActor)
+                guarded(this._addBackgroundClone, actor);
+            else
+                actor.get_children().forEach(addToExisting);
+        };
+        addToExisting(global.stage);
 
         this._scheduleRotation();
         if (Main.layoutManager._startingUp)
@@ -103,6 +147,11 @@ export default class PaperEngineExtension extends Extension {
         this._pauseCheckId = 0;
         this._lockScreenClones.forEach(clone => clone.destroy());
         this._lockScreenClones.clear();
+        this._injectionManager.clear();
+        this._injectionManager = null;
+        [...this._backgroundClones.keys()].forEach(clone => clone.destroy());
+        this._thumbnailClones.forEach(clone => clone.destroy());
+        this._thumbnailClones.clear();
         this._stop();
         this._settings = null;
     }
@@ -376,6 +425,84 @@ export default class PaperEngineExtension extends Extension {
             return;
         window.move_resize_frame(false, monitor.x, monitor.y, monitor.width, monitor.height);
         window.lower();
+        for (const clone of this._backgroundClones.keys())
+            this._syncBackgroundClone(clone);
+        for (const thumbnail of this._thumbnailClones.keys())
+            this._syncThumbnailClone(thumbnail);
+    }
+
+    _wallpaperActor(monitorIndex) {
+        const window = [...this._adoptedWindows.keys()].find(
+            adopted => this._adoptedWindows.get(adopted).monitorIndex === monitorIndex);
+        return window?.get_compositor_private() ?? null;
+    }
+
+    // A thumbnail shows its windows at their place on the screen, scaled down.
+    _syncThumbnailClone(thumbnail) {
+        let clone = this._thumbnailClones.get(thumbnail);
+        if (!clone) {
+            clone = new Clutter.Clone();
+            clone.connect('destroy', () => this._thumbnailClones.delete(thumbnail));
+            this._thumbnailClones.set(thumbnail, clone);
+            thumbnail._contents.insert_child_below(clone, null);
+        }
+        const monitor = Main.layoutManager.monitors[thumbnail.monitorIndex];
+        clone.set_position(monitor.x, monitor.y);
+        clone.set_size(monitor.width, monitor.height);
+        clone.source = this._wallpaperActor(thumbnail.monitorIndex);
+        clone.visible = clone.source !== null;
+    }
+
+    _addBackgroundClone(backgroundActor) {
+        const container = backgroundActor.get_parent();
+        // The desktop is covered by the wallpaper's own window, and the lock
+        // screen gets clones of its own (see _syncLockScreenClones).
+        if (container === Main.layoutManager._backgroundGroup ||
+            container.has_style_class_name?.('screen-shield-background'))
+            return;
+
+        // A clone asks for the size of its source, and the overview would
+        // lay a workspace out around that; the background asks for nothing
+        // and is given the space there is.
+        const clone = new Clutter.Clone({min_width: 0, min_height: 0, natural_width: 0, natural_height: 0});
+        clone.add_constraint(new Clutter.BindConstraint({
+            source: backgroundActor, coordinate: Clutter.BindCoordinate.SIZE,
+        }));
+        clone.connect('destroy', () => this._backgroundClones.delete(clone));
+        this._backgroundClones.set(clone, backgroundActor.monitor);
+        backgroundActor.add_child(clone);
+        this._syncBackgroundClone(clone);
+
+        // The overview clips the background of a workspace to its work area,
+        // with corners that round as the overview opens.
+        const workspaceBackground = container.get_parent()?.get_parent();
+        if (workspaceBackground instanceof WorkspaceBackground) {
+            const effect = new RoundedClipEffect();
+            clone.add_effect(effect);
+            const clip = () => this._clipToWorkArea(workspaceBackground, backgroundActor, effect);
+            backgroundActor.connect('notify::allocation', clip);
+            backgroundActor.content.connect('notify::rounded-clip-radius', clip);
+            clip();
+        }
+    }
+
+    _syncBackgroundClone(clone) {
+        clone.source = this._wallpaperActor(this._backgroundClones.get(clone));
+        clone.visible = clone.source !== null;
+    }
+
+    _clipToWorkArea(workspaceBackground, backgroundActor, effect) {
+        const monitor = Main.layoutManager.monitors[workspaceBackground._monitorIndex];
+        const workArea = workspaceBackground._workarea;
+        const {width, height} = backgroundActor;
+        const scaleX = width / monitor.width;
+        const scaleY = height / monitor.height;
+        const left = (workArea.x - monitor.x) * scaleX;
+        const top = (workArea.y - monitor.y) * scaleY;
+        effect.setClip(
+            width, height,
+            left, top, left + workArea.width * scaleX, top + workArea.height * scaleY,
+            backgroundActor.content.rounded_clip_radius * scaleX);
     }
 
     // Mutter focuses newly mapped windows, and a wallpaper has no use for the
@@ -404,6 +531,9 @@ export default class PaperEngineExtension extends Extension {
         // Behind the lock screen the windows of the session don't cover anything.
         if (Main.sessionMode.isLocked)
             return !this._settings.get_boolean('show-on-lock-screen');
+        // The overview shrinks the windows and shows the wallpaper around them.
+        if (Main.overview.visible)
+            return false;
         return this._isDesktopCovered();
     }
 
