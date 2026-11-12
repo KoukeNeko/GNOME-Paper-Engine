@@ -55,6 +55,13 @@ own Steam library; nothing is bundled here.
 | --- | --- |
 | ![Activities overview with the live wallpaper behind it](docs/overview.jpg) | ![A billboard in a scene showing the song, artist, position and cover](docs/media-display.png) |
 
+<p align="center"><sub>
+  The wallpapers and thumbnails in these screenshots are Steam Workshop
+  content. They are the work of their respective authors, who hold the
+  copyright; they are shown here only to illustrate the software and are not
+  part of this project or covered by its licence.
+</sub></p>
+
 ## What works
 
 | Wallpaper type | Rendered by | Status |
@@ -248,3 +255,7 @@ rm -rf ~/.local/share/gnome-paper-engine ~/.cache/gnome-paper-engine
 ## Licence
 
 GPL-3.0-or-later. Not affiliated with Wallpaper Engine or Valve.
+
+The licence covers the code of this project only. The artwork visible in the
+screenshots under `docs/` belongs to its original authors on the Steam
+Workshop and to the owners of the characters and games it depicts.
