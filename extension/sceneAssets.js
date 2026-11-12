@@ -23,6 +23,10 @@ const CONTENT_DEPOT_ID = '431961';
 const DEFAULT_DEPOT_DIR = GLib.build_filenamev([
     STEAMCMD_DIR, 'linux32', 'steamapps', 'content', `app_${WALLPAPER_ENGINE_APP_ID}`, `depot_${CONTENT_DEPOT_ID}`]);
 
+// SteamCMD's private HOME: it holds the saved sign-in, and nothing else of the user's.
+const STEAMCMD_HOME = GLib.build_filenamev([STEAMCMD_DIR, 'home']);
+const STEAMCMD_CONFIG = GLib.build_filenamev([STEAMCMD_HOME, 'Steam', 'config', 'config.vdf']);
+
 const ANSI_ESCAPE = /\x1b\[[0-9;?]*[A-Za-z]/g;
 // Kept at module level: a session collected mid-request never calls back.
 const session = new Soup.Session({timeout: 60});
@@ -57,6 +61,41 @@ export function readSteamCmdLine(line) {
     if (/no subscription|does not own|access denied/.test(lower))
         return {failure: 'not-owned'};
     return null;
+}
+
+/** The account names in SteamCMD's config file, where it lists those it has a saved sign-in for. */
+export function readSavedAccounts(config) {
+    const accounts = config.match(/"Accounts"\s*\{([\s\S]*)/)?.[1] ?? '';
+    const names = [];
+    let depth = 0;
+    for (const [, name, brace] of accounts.matchAll(/"([^"]*)"|([{}])/g)) {
+        if (brace === '{') {
+            depth++;
+        } else if (brace === '}') {
+            if (--depth < 0)
+                break;
+        } else if (depth === 0) {
+            names.push(name);
+        }
+    }
+    return names;
+}
+
+/** The Steam account SteamCMD stays signed in as, or null. */
+export function savedAccount() {
+    try {
+        const [, bytes] = GLib.file_get_contents(STEAMCMD_CONFIG);
+        return readSavedAccounts(new TextDecoder().decode(bytes))[0] ?? null;
+    } catch (e) {
+        if (e.matches(GLib.FileError, GLib.FileError.NOENT))
+            return null;
+        throw e;
+    }
+}
+
+/** Forgets the saved sign-in by removing SteamCMD's private HOME. The downloaded assets stay. */
+export function signOut() {
+    return runCommand(['rm', '-rf', STEAMCMD_HOME], null);
 }
 
 function runCommand(argv, cancellable) {
@@ -122,7 +161,7 @@ async function installSteamCmd(cancellable) {
  * the depot folder and the last failure Steam reported.
  */
 async function downloadDepot({account, ask, onStatus, record, cancellable}) {
-    const home = GLib.build_filenamev([STEAMCMD_DIR, 'home']);
+    const home = STEAMCMD_HOME;
     GLib.mkdir_with_parents(home, 0o700);
     const command = [
         STEAMCMD_SCRIPT, '+@ShutdownOnFailedCommand', '1', '+@sSteamCmdForcePlatformType', 'windows',

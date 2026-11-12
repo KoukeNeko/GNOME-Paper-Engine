@@ -432,3 +432,21 @@ msgstr "已安裝新版的 Paper Engine"
 
 msgid "Restart"
 msgstr "重新啟動"
+
+msgid "Steam account"
+msgstr "Steam 帳號"
+
+msgid "Sign out"
+msgstr "登出"
+
+msgid "Not signed in"
+msgstr "未登入"
+
+msgid "Sign out of Steam?"
+msgstr "登出 Steam？"
+
+msgid "The saved sign-in is removed. Downloading the scene assets again asks for the password."
+msgstr "將移除已儲存的登入資訊，再次下載場景素材時需重新輸入密碼。"
+
+msgid "Could not sign out of Steam"
+msgstr "無法登出 Steam"

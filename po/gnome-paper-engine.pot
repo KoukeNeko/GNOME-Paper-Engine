@@ -554,3 +554,21 @@ msgstr ""
 
 msgid "Restart"
 msgstr ""
+
+msgid "Steam account"
+msgstr ""
+
+msgid "Sign out"
+msgstr ""
+
+msgid "Not signed in"
+msgstr ""
+
+msgid "Sign out of Steam?"
+msgstr ""
+
+msgid "The saved sign-in is removed. Downloading the scene assets again asks for the password."
+msgstr ""
+
+msgid "Could not sign out of Steam"
+msgstr ""

@@ -11,7 +11,7 @@ GLib.setenv('XDG_CACHE_HOME', GLib.dir_make_tmp('gnome-paper-engine-tests-XXXXXX
 
 const {evaluateCondition} = await import('../extension/conditions.js');
 const {parseBrowsePage} = await import('../extension/workshop.js');
-const {readSteamCmdLine} = await import('../extension/sceneAssets.js');
+const {readSteamCmdLine, readSavedAccounts} = await import('../extension/sceneAssets.js');
 
 let failures = 0;
 function check(name, actual, expected) {
@@ -83,6 +83,23 @@ for (const [line, expected] of [
     ['Depot download failed : No subscription', {failure: 'not-owned'}],
     ['Loading Steam API...OK', null],
 ]) check(`steamcmd ${JSON.stringify(line)}`, readSteamCmdLine(line), expected);
+
+// SteamCMD's config lists the accounts it has a saved sign-in for, among much else.
+check('saved account', readSavedAccounts(`"InstallConfigStore"
+{
+	"Software" { "Valve" { "Steam" {
+		"ConnectCache" { "2bdb63c31" "0123456789abcdef" }
+		"Accounts"
+		{
+			"some_user"
+			{
+				"SteamID"		"76561190000000000"
+			}
+		}
+		"Other" { "x" "y" }
+	} } }
+}`), ['some_user']);
+check('no saved account', readSavedAccounts('"InstallConfigStore" { "Software" { } }'), []);
 
 if (failures > 0)
     System.exit(1);

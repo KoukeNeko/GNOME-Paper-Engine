@@ -20,7 +20,7 @@ import {
     format, blurMyShellSettings, BLUR_MY_SHELL_COMPONENTS,
 } from './library.js';
 import {evaluateCondition} from './conditions.js';
-import {downloadSceneAssets} from './sceneAssets.js';
+import {downloadSceneAssets, savedAccount, signOut} from './sceneAssets.js';
 import * as Workshop from './workshop.js';
 
 const SUPPORTED_TYPES = ['video', 'web', 'scene'];
@@ -471,6 +471,8 @@ class Picker {
         this._moreButton.visible = false;
 
         if (view === 'settings') {
+            // A download may have signed in since the page was built.
+            this._refreshAccount();
             this._stack.visible_child_name = 'settings';
             this._clearDetails(_('Adjust playback, volume and when to pause.'));
         } else if (this._isWorkshopView) {
@@ -607,7 +609,7 @@ class Picker {
     }
 
     _confirmAssetsDownload() {
-        const account = new Adw.EntryRow({title: _('Steam account name')});
+        const account = new Adw.EntryRow({title: _('Steam account name'), text: savedAccount() ?? ''});
         const fields = new Adw.PreferencesGroup();
         fields.add(account);
         const dialog = new Adw.AlertDialog({
@@ -618,7 +620,7 @@ class Picker {
         dialog.add_response('cancel', _('Cancel'));
         dialog.add_response('download', _('Download'));
         dialog.set_response_appearance('download', Adw.ResponseAppearance.SUGGESTED);
-        dialog.set_response_enabled('download', false);
+        dialog.set_response_enabled('download', account.text.trim() !== '');
         account.connect('changed', () => dialog.set_response_enabled('download', account.text.trim() !== ''));
         account.connect('entry-activated', () => {
             if (account.text.trim() !== '') {
@@ -1272,6 +1274,38 @@ class Picker {
         const languageRow = createChoiceRow(settings, 'language', _('Language'), LANGUAGE_LABELS);
         languageRow.subtitle = _('Takes effect the next time this window is opened');
         appearance.add(languageRow);
+
+        // The account SteamCMD stays signed in as for downloading the scene assets.
+        const steam = new Adw.PreferencesGroup({title: _('Steam account')});
+        page.add(steam);
+        const accountRow = new Adw.ActionRow();
+        const signOutButton = new Gtk.Button({label: _('Sign out'), valign: Gtk.Align.CENTER});
+        accountRow.add_suffix(signOutButton);
+        steam.add(accountRow);
+        this._refreshAccount = () => {
+            const account = savedAccount();
+            accountRow.title = GLib.markup_escape_text(account ?? _('Not signed in'), -1);
+            signOutButton.visible = account !== null;
+        };
+        signOutButton.connect('clicked', () => {
+            const dialog = new Adw.AlertDialog({
+                heading: _('Sign out of Steam?'),
+                body: _('The saved sign-in is removed. Downloading the scene assets again asks for the password.'),
+            });
+            dialog.add_response('cancel', _('Cancel'));
+            dialog.add_response('sign-out', _('Sign out'));
+            dialog.set_response_appearance('sign-out', Adw.ResponseAppearance.DESTRUCTIVE);
+            dialog.connect('response', (_dialog, response) => {
+                if (response !== 'sign-out')
+                    return;
+                signOut().then(this._refreshAccount).catch(e => {
+                    console.error(e);
+                    this._toastOverlay.add_toast(new Adw.Toast({title: _('Could not sign out of Steam')}));
+                });
+            });
+            dialog.present(this._window);
+        });
+        this._refreshAccount();
 
         const folders = new Adw.PreferencesGroup({
             title: _('Other wallpaper folders'),
