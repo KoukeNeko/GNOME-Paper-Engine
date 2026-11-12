@@ -47,6 +47,11 @@ const RELAUNCH_KEYS = ['wallpaper', 'monitor-wallpapers', 'fit', 'scene-renderer
 
 const SCENE_SCALING = {cover: 'fill', contain: 'fit', fill: 'stretch'};
 
+// How often per second the extension may redo something that keeps getting
+// undone, before it concludes that something else is working against it.
+const REPEAT_LIMIT = 10;
+const REPEAT_WINDOW_MS = 1000;
+
 const SIGSTOP = 19;
 const SIGCONT = 18;
 
@@ -63,6 +68,8 @@ export default class PaperEngineExtension extends Extension {
         this._clicking = false;
         // Meta.Window → {monitorIndex, signalIds}
         this._adoptedWindows = new Map();
+        // What the extension keeps redoing → {since, count} within the current second.
+        this._repeats = new Map();
         this._failures = 0;
         this._paused = false;
         this._relaunchId = 0;
@@ -483,10 +490,52 @@ export default class PaperEngineExtension extends Extension {
         this._adoptedWindows.set(window, {
             monitorIndex,
             signalIds: [
-                window.connect('raised', () => window.lower()),
+                window.connect('raised', () => {
+                    if (this._mayRepeat('lowering the wallpaper window'))
+                        window.lower();
+                }),
+                window.connect('size-changed', () => this._keepInPlace(window)),
+                window.connect('position-changed', () => this._keepInPlace(window)),
                 window.connect('unmanaged', () => this._adoptedWindows.delete(window)),
             ],
         });
+    }
+
+    // The extension puts things back the way it wants them: the wallpaper at
+    // the bottom and on its monitor, the focus on a real window. If something
+    // else keeps undoing that, doing it again at once makes the two flicker
+    // against each other for ever. Past a few times a second it is left as it
+    // is instead, and the log says what was being repeated.
+    _mayRepeat(action) {
+        const now = GLib.get_monotonic_time() / 1000;
+        let record = this._repeats.get(action);
+        if (!record || now - record.since > REPEAT_WINDOW_MS) {
+            record = {since: now, count: 0};
+            this._repeats.set(action, record);
+        }
+        record.count++;
+        if (record.count === REPEAT_LIMIT + 1)
+            console.warn(`${this.uuid}: ${action} more than ${REPEAT_LIMIT} times a second; leaving it be`);
+        return record.count <= REPEAT_LIMIT;
+    }
+
+    // A wallpaper window that moved or changed size no longer covers its monitor.
+    _keepInPlace(window) {
+        const adopted = this._adoptedWindows.get(window);
+        const monitor = Main.layoutManager.monitors[adopted?.monitorIndex];
+        if (!monitor || !window.get_compositor_private()?.mapped)
+            return;
+        const frame = window.get_frame_rect();
+        if (frame.x === monitor.x && frame.y === monitor.y &&
+            frame.width === monitor.width && frame.height === monitor.height)
+            return;
+        if (!adopted.misplacementLogged) {
+            adopted.misplacementLogged = true;
+            console.warn(`${this.uuid}: the wallpaper window is at ${frame.width}x${frame.height}+${frame.x}+${frame.y}, ` +
+                `its monitor at ${monitor.width}x${monitor.height}+${monitor.x}+${monitor.y}`);
+        }
+        if (this._mayRepeat('putting the wallpaper window back on its monitor'))
+            window.move_resize_frame(false, monitor.x, monitor.y, monitor.width, monitor.height);
     }
 
     // Geometry can only be imposed once the window is mapped.
@@ -510,7 +559,7 @@ export default class PaperEngineExtension extends Extension {
     // Mutter focuses newly mapped windows, and a wallpaper has no use for the
     // keyboard: hand focus back to the window the user is working in.
     _passOnFocus() {
-        if (!this._adoptedWindows.has(global.display.focus_window))
+        if (!this._adoptedWindows.has(global.display.focus_window) || !this._mayRepeat('handing the focus back'))
             return;
         const workspace = global.workspace_manager.get_active_workspace();
         const [topWindow] = global.display.get_tab_list(Meta.TabList.NORMAL_ALL, workspace);
@@ -606,7 +655,7 @@ export default class PaperEngineExtension extends Extension {
     }
 
     _setPaused(paused) {
-        if (paused === this._paused || this._renderers.length === 0)
+        if (paused === this._paused || this._renderers.length === 0 || !this._mayRepeat('pausing and resuming'))
             return;
         this._paused = paused;
         this._sendCommand(paused ? 'pause' : 'play');
