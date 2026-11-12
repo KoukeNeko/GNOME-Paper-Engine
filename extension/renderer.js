@@ -84,9 +84,40 @@ function videoPage(file, fit) {
 </body></html>`;
 }
 
+/**
+ * Web wallpapers are pages written by strangers, loaded from file:// so that
+ * their video and audio play. This content filter keeps them to the files of
+ * their own folder: without it a page could read anything in the user's home
+ * directory and send it away.
+ */
+function compileFolderFilter(folder) {
+    const folderUri = Gio.File.new_for_path(folder).get_uri().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const rules = [
+        {trigger: {'url-filter': '^file:', 'url-filter-is-case-sensitive': true}, action: {type: 'block'}},
+        {trigger: {'url-filter': `^${folderUri}/`, 'url-filter-is-case-sensitive': true}, action: {type: 'ignore-previous-rules'}},
+    ];
+    const store = new WebKit.UserContentFilterStore({
+        path: GLib.build_filenamev([GLib.get_user_cache_dir(), 'gnome-paper-engine', 'content-filters']),
+    });
+    return new Promise((resolve, reject) => {
+        // One filter per folder: several renderers may be compiling theirs at once.
+        const identifier = GLib.compute_checksum_for_string(GLib.ChecksumType.SHA256, folder, -1);
+        store.save(identifier, new GLib.Bytes(new TextEncoder().encode(JSON.stringify(rules))), null,
+            (_store, result) => {
+                try {
+                    resolve(store.save_finish(result));
+                } catch (e) {
+                    reject(e);
+                }
+            });
+    });
+}
+
 class Renderer {
-    constructor(options) {
+    /** `folderFilter` confines a web wallpaper to its folder; null for videos. */
+    constructor(options, folderFilter) {
         this._options = options;
+        this._folderFilter = folderFilter;
         this._paused = false;
         // Monitor index → WebView.
         this._views = new Map();
@@ -102,6 +133,7 @@ class Renderer {
 
         const contentManager = new WebKit.UserContentManager();
         if (type === 'web') {
+            contentManager.add_filter(this._folderFilter);
             contentManager.register_script_message_handler('paperEngine');
             contentManager.connect('script-message-received::paperEngine', () => this._startAudioCapture());
             contentManager.add_script(new WebKit.UserScript(
@@ -297,5 +329,7 @@ class Renderer {
 }
 
 Gtk.init(null);
-new Renderer(parseArgs(ARGV));
+const options = parseArgs(ARGV);
+// Without its filter a web wallpaper is not shown at all: a failure here ends the process.
+new Renderer(options, options.type === 'web' ? await compileFolderFilter(GLib.path_get_dirname(options.file)) : null);
 Gtk.main();
