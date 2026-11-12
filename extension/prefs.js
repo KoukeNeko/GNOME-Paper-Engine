@@ -15,9 +15,11 @@ import Pango from 'gi://Pango';
 import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import {
-    listProjects, loadProject, resolveProperties, findSceneRenderer, findWorkshopDirs, isSceneSupported, format,
+    listProjects, loadProject, resolveProperties, findSceneRenderer, findAssetsDir, findWorkshopDirs, isSceneSupported,
+    format,
 } from './library.js';
 import {evaluateCondition} from './conditions.js';
+import {downloadSceneAssets} from './sceneAssets.js';
 import * as Workshop from './workshop.js';
 
 const SUPPORTED_TYPES = ['video', 'web', 'scene'];
@@ -491,11 +493,19 @@ class Picker {
         this._navRows.get('subscribed').count.label = `${this._projects.filter(project => project.workshopId).length}`;
         this._updatePlaylistCount();
 
-        if (!this._installingRenderer) {
-            this._sceneNotice.revealed = countOf('scene') > 0 &&
-                !findSceneRenderer(this._settings.get_string('scene-renderer'));
-            this._setSceneNotice(_('Scene wallpapers need the scene renderer'), _('Install'),
-                () => this._confirmRendererInstall());
+        if (!this._installingRenderer && !this._downloadingAssets) {
+            const hasScenes = countOf('scene') > 0;
+            if (hasScenes && !findSceneRenderer(this._settings.get_string('scene-renderer'))) {
+                this._sceneNotice.revealed = true;
+                this._setSceneNotice(_('Scene wallpapers need the scene renderer'), _('Install'),
+                    () => this._confirmRendererInstall());
+            } else if (hasScenes && !findAssetsDir()) {
+                this._sceneNotice.revealed = true;
+                this._setSceneNotice(_('Scene wallpapers need the scene assets'), _('Download'),
+                    () => this._confirmAssetsDownload());
+            } else {
+                this._sceneNotice.revealed = false;
+            }
         }
         this._updateNowPlaying();
         // Workshop views don't show the library, but their "subscribed" state depends on it.
@@ -568,6 +578,109 @@ class Picker {
             this._installingRenderer = false;
             this._reloadLibrary();
         });
+    }
+
+    _confirmAssetsDownload() {
+        const account = new Adw.EntryRow({title: _('Steam account name')});
+        const fields = new Adw.PreferencesGroup();
+        fields.add(account);
+        const dialog = new Adw.AlertDialog({
+            heading: _('Download the scene assets?'),
+            body: _('Signs in to Steam with SteamCMD and downloads the Windows version of Wallpaper Engine, about 800 MB, keeping only its assets. The account must own Wallpaper Engine.'),
+            extra_child: fields,
+        });
+        dialog.add_response('cancel', _('Cancel'));
+        dialog.add_response('download', _('Download'));
+        dialog.set_response_appearance('download', Adw.ResponseAppearance.SUGGESTED);
+        dialog.set_response_enabled('download', false);
+        account.connect('changed', () => dialog.set_response_enabled('download', account.text.trim() !== ''));
+        account.connect('entry-activated', () => {
+            if (account.text.trim() !== '') {
+                dialog.close();
+                this._downloadAssets(account.text.trim());
+            }
+        });
+        dialog.connect('response', (_dialog, response) => {
+            if (response === 'download')
+                this._downloadAssets(account.text.trim());
+        });
+        dialog.present(this._window);
+    }
+
+    // Answers a SteamCMD prompt: 'password' or 'code'. Resolves to null when cancelled.
+    _askSteam(kind) {
+        const entry = kind === 'password'
+            ? new Adw.PasswordEntryRow({title: _('Password')})
+            : new Adw.EntryRow({title: _('Code')});
+        const fields = new Adw.PreferencesGroup();
+        fields.add(entry);
+        const dialog = new Adw.AlertDialog({
+            heading: kind === 'password' ? _('Steam password') : _('Steam Guard code'),
+            body: kind === 'password' ? '' : _('Enter the code from the Steam Mobile app or from the email Steam sent.'),
+            extra_child: fields,
+        });
+        dialog.add_response('cancel', _('Cancel'));
+        dialog.add_response('sign-in', _('Sign in'));
+        dialog.set_response_appearance('sign-in', Adw.ResponseAppearance.SUGGESTED);
+        dialog.set_response_enabled('sign-in', false);
+        entry.connect('changed', () => dialog.set_response_enabled('sign-in', entry.text !== ''));
+        return new Promise(resolve => {
+            let answered = false;
+            const answer = text => {
+                if (!answered) {
+                    answered = true;
+                    resolve(text);
+                }
+            };
+            entry.connect('entry-activated', () => {
+                if (entry.text !== '') {
+                    answer(entry.text);
+                    dialog.close();
+                }
+            });
+            dialog.connect('response', (_dialog, response) => answer(response === 'sign-in' ? entry.text : null));
+            dialog.present(this._window);
+        });
+    }
+
+    async _downloadAssets(account) {
+        const log = GLib.build_filenamev([GLib.get_user_cache_dir(), 'gnome-paper-engine', 'download-scene-assets.log']);
+        const statusTitles = {
+            'steamcmd': _('Installing SteamCMD'),
+            'signing-in': _('Signing in to Steam'),
+            'confirm': _('Approve the sign-in in the Steam Mobile app'),
+            'downloading': _('Downloading the scene assets'),
+            'installing': _('Installing the scene assets'),
+        };
+        const failureTitles = {
+            'sign-in': _('Steam did not accept the sign-in'),
+            'rate-limit': _('Steam is limiting sign-ins. Try again later.'),
+            'not-owned': _('This Steam account does not own Wallpaper Engine'),
+        };
+        this._downloadingAssets = true;
+        try {
+            await downloadSceneAssets({
+                account,
+                ask: kind => this._askSteam(kind),
+                onStatus: status => this._setSceneNotice(statusTitles[status], null, null),
+                log,
+                cancellable: this._cancellable,
+            });
+        } catch (e) {
+            this._downloadingAssets = false;
+            if (this._cancellable.is_cancelled())
+                return;
+            if (e.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED)) {
+                this._reloadLibrary();
+                return;
+            }
+            console.error(e);
+            this._setSceneNotice(failureTitles[e.reason] ?? _('The scene assets could not be downloaded'), _('Show log'),
+                () => Gio.AppInfo.launch_default_for_uri(Gio.File.new_for_path(log).get_uri(), null));
+            return;
+        }
+        this._downloadingAssets = false;
+        this._reloadLibrary();
     }
 
     _populateLibrary() {

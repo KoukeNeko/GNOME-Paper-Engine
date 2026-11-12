@@ -161,6 +161,18 @@ puppet-warp layers (animated characters) are drawn, scene scripts run, and
 text layers and media displays work; characters are shown in their rest pose,
 since that renderer does not play bone animations.
 
+Scenes also need Wallpaper Engine's `assets` folder. It is used from a
+Wallpaper Engine install in any Steam library. Without one, the bar offers
+**Download** instead: the picker asks for the Steam account name, then for
+the password and Steam Guard code when Steam wants them, and uses
+[SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD) to download
+Wallpaper Engine's Windows depot (about 800 MB). Only its `assets` folder is
+kept, in `~/.local/share/gnome-paper-engine/assets`. Steam checks that the
+account owns Wallpaper Engine. SteamCMD is Valve's own download, kept in
+`~/.local/share/gnome-paper-engine/steamcmd` with its own sign-in, separate
+from the Steam client's; it is a 32-bit program, so it needs the i386
+libraries that Steam also uses.
+
 Scenes that use a 3D perspective camera (a few of the samples bundled with
 Wallpaper Engine, e.g. *Neon Sunset*) are not supported by
 linux-wallpaperengine yet. The picker marks those it can recognise as
@@ -286,7 +298,8 @@ rm -rf ~/.local/share/gnome-shell/extensions/gnome-paper-engine@koukeneko.github
        ~/.local/share/icons/hicolor/scalable/apps/gnome-paper-engine.svg
 ```
 
-Either way the scene renderer stays in your home folder until you delete it.
+Either way the scene renderer, and any downloaded scene assets and SteamCMD
+with its saved Steam sign-in, stay in your home folder until you delete them.
 The still image used as the desktop background is kept there too, so turn
 that option off (or pick another background) first:
 

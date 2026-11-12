@@ -443,7 +443,7 @@ msgstr ""
 #: extension/extension.js:261
 
 #: extension/extension.js:266
-msgid "Scene wallpapers need Wallpaper Engine itself to be installed in Steam (for its assets folder)."
+msgid "Scene wallpapers need the scene assets. Download them from the Paper Engine window."
 msgstr ""
 
 #: extension/extension.js:310
@@ -487,4 +487,64 @@ msgid "Show log"
 msgstr ""
 
 msgid "Scene wallpapers need the scene renderer. Install it from the Paper Engine window."
+msgstr ""
+
+msgid "Scene wallpapers need the scene assets"
+msgstr ""
+
+msgid "Download"
+msgstr ""
+
+msgid "Steam account name"
+msgstr ""
+
+msgid "Download the scene assets?"
+msgstr ""
+
+msgid "Signs in to Steam with SteamCMD and downloads the Windows version of Wallpaper Engine, about 800 MB, keeping only its assets. The account must own Wallpaper Engine."
+msgstr ""
+
+msgid "Password"
+msgstr ""
+
+msgid "Code"
+msgstr ""
+
+msgid "Steam password"
+msgstr ""
+
+msgid "Steam Guard code"
+msgstr ""
+
+msgid "Enter the code from the Steam Mobile app or from the email Steam sent."
+msgstr ""
+
+msgid "Sign in"
+msgstr ""
+
+msgid "Installing SteamCMD"
+msgstr ""
+
+msgid "Signing in to Steam"
+msgstr ""
+
+msgid "Approve the sign-in in the Steam Mobile app"
+msgstr ""
+
+msgid "Downloading the scene assets"
+msgstr ""
+
+msgid "Installing the scene assets"
+msgstr ""
+
+msgid "Steam did not accept the sign-in"
+msgstr ""
+
+msgid "Steam is limiting sign-ins. Try again later."
+msgstr ""
+
+msgid "This Steam account does not own Wallpaper Engine"
+msgstr ""
+
+msgid "The scene assets could not be downloaded"
 msgstr ""

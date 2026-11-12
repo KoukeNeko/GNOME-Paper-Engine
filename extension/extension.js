@@ -367,7 +367,7 @@ export default class PaperEngineExtension extends Extension {
         }
         const assetsDir = findAssetsDir();
         if (!assetsDir) {
-            this._notify(_('Scene wallpapers need Wallpaper Engine itself to be installed in Steam (for its assets folder).'));
+            this._notify(_('Scene wallpapers need the scene assets. Download them from the Paper Engine window.'));
             return;
         }
 

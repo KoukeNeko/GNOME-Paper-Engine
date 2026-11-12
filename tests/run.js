@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Tests for the parsers that read content from outside: option conditions
-// from wallpapers and the Workshop browse page. Run with `gjs -m tests/run.js`.
+// from wallpapers, the Workshop browse page and SteamCMD's output. Run with `gjs -m tests/run.js`.
 
 import GLib from 'gi://GLib';
 import System from 'system';
@@ -11,6 +11,7 @@ GLib.setenv('XDG_CACHE_HOME', GLib.dir_make_tmp('gnome-paper-engine-tests-XXXXXX
 
 const {evaluateCondition} = await import('../extension/conditions.js');
 const {parseBrowsePage} = await import('../extension/workshop.js');
+const {readSteamCmdLine} = await import('../extension/sceneAssets.js');
 
 let failures = 0;
 function check(name, actual, expected) {
@@ -64,6 +65,21 @@ try {
     threw = true;
 }
 check('workshop page without results throws', threw, true);
+
+for (const [line, expected] of [
+    ['\x1b[0mpassword: \x1b[0m', {prompt: 'password'}],
+    ['Steam Guard code:', {prompt: 'code'}],
+    ['Two-factor code:', {prompt: 'code'}],
+    ['Please confirm the login in the Steam Mobile app on your phone.', {status: 'confirm'}],
+    ['Waiting for user info...OK', null],
+    ['Logged in OK', {status: 'downloading'}],
+    ['Depot download complete : "/x/steamapps/content/app_431960/depot_431961" (241 files, manifest 1)',
+        {depotDir: '/x/steamapps/content/app_431960/depot_431961'}],
+    ['ERROR (Invalid Password)', {failure: 'sign-in'}],
+    ['FAILED (Rate Limit Exceeded)', {failure: 'rate-limit'}],
+    ['Depot download failed : No subscription', {failure: 'not-owned'}],
+    ['Loading Steam API...OK', null],
+]) check(`steamcmd ${JSON.stringify(line)}`, readSteamCmdLine(line), expected);
 
 if (failures > 0)
     System.exit(1);

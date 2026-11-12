@@ -286,8 +286,8 @@ msgid "Could not start the wallpaper renderer: %s"
 msgstr "無法啟動桌布渲染器：%s"
 
 
-msgid "Scene wallpapers need Wallpaper Engine itself to be installed in Steam (for its assets folder)."
-msgstr "場景桌布需要先在 Steam 安裝 Wallpaper Engine 本體（會用到它的 assets 資料夾）。"
+msgid "Scene wallpapers need the scene assets. Download them from the Paper Engine window."
+msgstr "場景桌布需要場景素材，請在 Paper Engine 視窗中下載。"
 
 msgid "The wallpaper renderer keeps crashing; giving up on this wallpaper."
 msgstr "桌布渲染器不斷當掉，已停止嘗試這張桌布。"
@@ -366,3 +366,63 @@ msgstr "顯示記錄"
 
 msgid "Scene wallpapers need the scene renderer. Install it from the Paper Engine window."
 msgstr "場景桌布需要場景渲染器，請在 Paper Engine 視窗中安裝。"
+
+msgid "Scene wallpapers need the scene assets"
+msgstr "場景桌布需要場景素材"
+
+msgid "Download"
+msgstr "下載"
+
+msgid "Steam account name"
+msgstr "Steam 帳號名稱"
+
+msgid "Download the scene assets?"
+msgstr "下載場景素材？"
+
+msgid "Signs in to Steam with SteamCMD and downloads the Windows version of Wallpaper Engine, about 800 MB, keeping only its assets. The account must own Wallpaper Engine."
+msgstr "將以 SteamCMD 登入 Steam，下載 Windows 版 Wallpaper Engine（約 800 MB），只保留其中的素材。帳號必須擁有 Wallpaper Engine。"
+
+msgid "Password"
+msgstr "密碼"
+
+msgid "Code"
+msgstr "驗證碼"
+
+msgid "Steam password"
+msgstr "Steam 密碼"
+
+msgid "Steam Guard code"
+msgstr "Steam Guard 驗證碼"
+
+msgid "Enter the code from the Steam Mobile app or from the email Steam sent."
+msgstr "請輸入 Steam 行動應用程式或 Steam 寄送的電子郵件中的驗證碼。"
+
+msgid "Sign in"
+msgstr "登入"
+
+msgid "Installing SteamCMD"
+msgstr "正在安裝 SteamCMD"
+
+msgid "Signing in to Steam"
+msgstr "正在登入 Steam"
+
+msgid "Approve the sign-in in the Steam Mobile app"
+msgstr "請在 Steam 行動應用程式中核准登入"
+
+msgid "Downloading the scene assets"
+msgstr "正在下載場景素材"
+
+msgid "Installing the scene assets"
+msgstr "正在安裝場景素材"
+
+msgid "Steam did not accept the sign-in"
+msgstr "Steam 登入失敗"
+
+msgid "Steam is limiting sign-ins. Try again later."
+msgstr "Steam 暫時限制登入，請稍後再試。"
+
+msgid "This Steam account does not own Wallpaper Engine"
+msgstr "這個 Steam 帳號沒有 Wallpaper Engine"
+
+msgid "The scene assets could not be downloaded"
+msgstr "無法下載場景素材"

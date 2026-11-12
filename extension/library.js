@@ -6,7 +6,7 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
-const WALLPAPER_ENGINE_APP_ID = '431960';
+export const WALLPAPER_ENGINE_APP_ID = '431960';
 
 // Where a Steam installation may live, relative to the home directory.
 const STEAM_ROOTS = [
@@ -19,6 +19,8 @@ const STEAM_ROOTS = [
 // Where setup-scene-renderer.sh installs linux-wallpaperengine.
 const LOCAL_SCENE_RENDERER = GLib.build_filenamev(
     [GLib.get_user_data_dir(), 'gnome-paper-engine', 'bin', 'linux-wallpaperengine']);
+// Where the picker installs the scene assets it downloads with SteamCMD.
+export const LOCAL_ASSETS_DIR = GLib.build_filenamev([GLib.get_user_data_dir(), 'gnome-paper-engine', 'assets']);
 
 /** Fills the %s placeholders of a translated string, in order. */
 export function format(template, ...values) {
@@ -79,14 +81,17 @@ export function findSteamLibraries() {
     return [...resolved];
 }
 
-/** The Wallpaper Engine install's `assets` directory, needed to render scenes. */
+/**
+ * The `assets` directory needed to render scenes: that of a Wallpaper Engine
+ * install, or the one downloaded from the picker.
+ */
 export function findAssetsDir() {
     for (const library of findSteamLibraries()) {
         const assets = GLib.build_filenamev([library, 'steamapps', 'common', 'wallpaper_engine', 'assets']);
         if (GLib.file_test(assets, GLib.FileTest.IS_DIR))
             return assets;
     }
-    return null;
+    return GLib.file_test(LOCAL_ASSETS_DIR, GLib.FileTest.IS_DIR) ? LOCAL_ASSETS_DIR : null;
 }
 
 /**
