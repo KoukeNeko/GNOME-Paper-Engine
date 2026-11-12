@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GNOME Paper Engine — Wallpaper Engine wallpapers on the GNOME desktop</title>
+<meta name="description" content="Video, web and scene wallpapers from your Steam copy of Wallpaper Engine, playing as the background on Ubuntu / GNOME (Wayland).">
+<meta property="og:title" content="GNOME Paper Engine">
+<meta property="og:description" content="Your Wallpaper Engine library, live on the GNOME desktop.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --slate:#0f1b24; --surface:#16262f; --surface-2:#1d313c; --line:rgba(255,255,255,.12);
+  --ink:#f4f7f9; --mute:#b4c3cd; --dim:#8fa1ac;
+  --amber:#e8b04a; --amber-ink:#2a1c05; --ice:#9fd4ff;
+  --radius:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:Manrope,"Noto Sans",system-ui,sans-serif;background:var(--slate);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+img{display:block;max-width:100%}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+.eyebrow{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);font-weight:800}
+h1,h2,h3{letter-spacing:-.025em;line-height:1.05;font-weight:800}
+h2{font-size:clamp(34px,4.4vw,56px);text-wrap:balance}
+.btn{display:inline-flex;align-items:center;gap:10px;height:54px;padding:0 28px;border-radius:99px;background:var(--amber);color:var(--amber-ink);font-weight:800;font-size:17px;text-decoration:none;box-shadow:0 10px 30px rgba(232,176,74,.28);transition:transform .2s,box-shadow .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(232,176,74,.36)}
+.link{color:var(--ink);font-weight:600;text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:3px}
+.link:hover{border-color:var(--ink)}
+
+/* top bar */
+.bar{position:fixed;top:0;left:0;right:0;height:34px;background:#000;z-index:30;display:flex;align-items:center;justify-content:space-between;padding:0 18px;font-size:13px;font-weight:600}
+.pills{display:flex;gap:6px;align-items:center}
+.pills i{display:block;height:8px;width:8px;border-radius:99px;background:#7d8a92}
+.pills i:first-child{width:24px;background:#fff}
+.bar nav{display:flex;gap:26px;color:var(--mute)}
+.bar nav a{text-decoration:none}.bar nav a:hover{color:#fff}
+
+/* dock */
+.dock{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:4px;padding:8px 10px;border-radius:22px;background:rgba(15,27,36,.7);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--line)}
+.dock img{width:44px;height:44px;margin-right:8px}
+.dock a{text-decoration:none;font-weight:600;font-size:15px;padding:12px 16px;border-radius:14px;position:relative}
+.dock a:hover{background:rgba(255,255,255,.1)}
+.dock a.on::after{content:"";position:absolute;left:50%;bottom:3px;width:5px;height:5px;margin-left:-2.5px;border-radius:99px;background:var(--amber)}
+
+/* hero */
+.hero{position:relative;height:100vh;min-height:640px;overflow:hidden}
+.hero .art{position:absolute;inset:0;width:100%;height:100%;will-change:transform}
+.hero .art g{will-change:transform}
+.hero .scrim{position:absolute;inset:0;background:linear-gradient(90deg,rgba(9,18,25,.92) 0%,rgba(9,18,25,.7) 38%,rgba(9,18,25,0) 62%),linear-gradient(0deg,rgba(9,18,25,.8) 0%,rgba(9,18,25,0) 30%)}
+.hero .night{position:absolute;inset:0;background:var(--slate);opacity:0}
+.hero main{position:absolute;left:72px;bottom:136px;max-width:640px}
+.hero h1{font-size:68px;margin-top:22px;text-wrap:balance}
+.hero p.lede{margin-top:26px;font-size:20px;color:var(--mute);max-width:560px}
+.actions{margin-top:36px;display:flex;align-items:center;gap:28px;flex-wrap:wrap}
+.note{margin-top:20px;font-size:14px;color:var(--dim)}
+
+/* sections */
+.sec{padding:140px 72px;max-width:1344px;margin:0 auto}
+.sec>.eyebrow{display:block;margin-bottom:18px}
+.sec .intro{max-width:760px;margin-bottom:56px}
+.sec .intro p{margin-top:20px;font-size:19px;color:var(--mute)}
+
+/* window frame */
+.win{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 40px 90px rgba(0,0,0,.45)}
+.win .tb{height:38px;display:flex;align-items:center;padding:0 14px;gap:8px;background:#0b141b;border-bottom:1px solid var(--line);font-size:13px;color:var(--dim)}
+.win .tb i{width:10px;height:10px;border-radius:99px;background:#35444e}
+.win .tb span{margin:0 auto}
+
+/* image credits */
+.credit{font-size:12px;line-height:1.4;color:var(--dim)}
+.win .credit{padding:10px 16px;border-top:1px solid var(--line);background:#0b141b}
+figure .credit{padding:10px 2px 0}
+
+/* everywhere */
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
+.tabs button{font:inherit;font-weight:600;font-size:15px;color:var(--mute);background:transparent;border:1px solid var(--line);border-radius:99px;padding:10px 20px;cursor:pointer;transition:all .2s}
+.tabs button:hover{color:var(--ink);border-color:rgba(255,255,255,.3)}
+.tabs button[aria-selected=true]{background:var(--ink);color:var(--slate);border-color:var(--ink)}
+.stage{position:relative;aspect-ratio:16/9;background:#000}
+.stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.03);transition:opacity .6s ease,transform .9s cubic-bezier(.2,.8,.2,1)}
+.stage img.on{opacity:1;transform:none}
+.caption{margin-top:20px;font-size:18px;color:var(--mute);min-height:30px}
+
+/* picker */
+.split{display:grid;grid-template-columns:5fr 7fr;gap:64px;align-items:center}
+.points{list-style:none;margin-top:36px;display:grid;gap:28px}
+.points li{display:grid;grid-template-columns:34px 1fr;gap:16px}
+.points b{display:grid;place-items:center;width:34px;height:34px;border-radius:99px;background:var(--amber);color:var(--amber-ink);font-weight:800;font-size:15px}
+.points h3{font-size:20px;letter-spacing:-.01em;margin-bottom:4px}
+.points p{color:var(--mute);font-size:16px}
+.pin{position:absolute;display:grid;place-items:center;width:30px;height:30px;border-radius:99px;background:var(--amber);color:var(--amber-ink);font-weight:800;font-size:14px;box-shadow:0 0 0 5px rgba(232,176,74,.3)}
+
+/* types */
+.rows{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--surface)}
+.row{display:grid;grid-template-columns:200px 1fr auto;gap:24px;align-items:center;padding:24px 28px}
+.row+.row{border-top:1px solid var(--line)}
+.row h3{font-size:22px;letter-spacing:-.01em}
+.row p{color:var(--mute);font-size:16px}
+.row p small{display:block;margin-top:2px;color:var(--dim);font-size:14px}
+.tag{font-size:13px;font-weight:800;padding:7px 14px;border-radius:99px;white-space:nowrap;background:rgba(232,176,74,.16);color:var(--amber)}
+.tag.no{background:rgba(255,255,255,.08);color:var(--dim)}
+.fine{margin-top:18px;font-size:14px;color:var(--dim)}
+.media{display:grid;grid-template-columns:7fr 5fr;gap:56px;align-items:center;margin-top:88px}
+.media figure img{border-radius:var(--radius);border:1px solid var(--line)}
+.media h3{font-size:30px;margin-bottom:14px}
+.media p{color:var(--mute);font-size:18px}
+
+/* daily use */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:32px}
+.card h3{font-size:22px;letter-spacing:-.01em;margin-bottom:8px}
+.card p{color:var(--mute);font-size:16px}
+
+/* install */
+.steps{list-style:none;display:grid;gap:0;position:relative;counter-reset:s}
+.steps::before{content:"";position:absolute;left:21px;top:22px;bottom:22px;width:2px;background:var(--line)}
+.steps .line{position:absolute;left:21px;top:22px;width:2px;height:0;background:var(--amber)}
+.step{display:grid;grid-template-columns:44px 1fr;gap:28px;padding-bottom:44px;position:relative}
+.step:last-child{padding-bottom:0}
+.step .n{display:grid;place-items:center;width:44px;height:44px;border-radius:99px;background:var(--slate);border:2px solid var(--line);font-weight:800;color:var(--dim);transition:all .3s;z-index:1}
+.step.on .n{border-color:var(--amber);color:var(--amber-ink);background:var(--amber)}
+.step h3{font-size:24px;letter-spacing:-.01em;padding-top:7px}
+.step p{margin-top:8px;color:var(--mute);font-size:17px;max-width:680px}
+.code{margin-top:16px;display:flex;align-items:center;gap:12px;background:#0a1319;border:1px solid var(--line);border-radius:12px;padding:14px 16px;max-width:720px}
+.code code{flex:1;font-family:"JetBrains Mono",monospace;font-size:14px;color:#dfe8ee;overflow-x:auto;white-space:nowrap}
+.code code span{color:var(--dim);user-select:none}
+.copy{font:inherit;font-size:13px;font-weight:700;color:var(--ink);background:rgba(255,255,255,.08);border:0;border-radius:8px;padding:8px 14px;cursor:pointer}
+.copy:hover{background:rgba(255,255,255,.16)}
+.cta{margin-top:64px;display:flex;align-items:center;gap:28px;flex-wrap:wrap}
+
+footer{border-top:1px solid var(--line);padding:44px 72px 120px;max-width:1344px;margin:0 auto;display:grid;grid-template-columns:1fr auto;gap:24px;color:var(--dim);font-size:14px}
+footer nav{display:flex;gap:26px}
+footer small{grid-column:1/3;font-size:12px;line-height:1.6;max-width:820px}
+
+@media (max-width:900px){
+  .bar nav{gap:16px}
+  .dock{display:none}
+  .hero main{left:24px;right:24px;bottom:72px}
+  .hero h1{font-size:44px}
+  .hero p.lede{font-size:17px}
+  .hero .art{left:-70%;width:200%}
+  .hero .scrim{background:linear-gradient(0deg,rgba(9,18,25,.94) 0%,rgba(9,18,25,.55) 55%,rgba(9,18,25,.15) 100%)}
+  .sec{padding:88px 24px}
+  .split,.media{grid-template-columns:1fr;gap:36px}
+  .row{grid-template-columns:1fr;gap:10px;padding:22px}
+  .row .tag{justify-self:start}
+  .grid2{grid-template-columns:1fr}
+  .step{gap:18px}
+  footer{padding:36px 24px 56px;grid-template-columns:1fr}
+  footer small{grid-column:auto}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.stage img{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="pills"><i></i><i></i><i></i></div>
+  <nav><a href="#everywhere">Features</a><a href="#install">Install</a><a href="https://github.com/KoukeNeko/GNOME-Paper-Engine">GitHub</a></nav>
+</div>
+
+<nav class="dock" aria-label="Sections">
+  <img src="icon.svg" alt="Paper Engine">
+  <a href="#everywhere" data-s="everywhere">Everywhere</a>
+  <a href="#picker" data-s="picker">Picker</a>
+  <a href="#types" data-s="types">Types</a>
+  <a href="#install" data-s="install">Install</a>
+</nav>
+
+<header class="hero" id="top">
+  <svg class="art" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a141c"/><stop offset=".6" stop-color="#163240"/><stop offset="1" stop-color="#3b5a5a"/></linearGradient>
+      <radialGradient id="glow" cx="1000" cy="400" r="470" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#e8b04a" stop-opacity=".42"/><stop offset="1" stop-color="#e8b04a" stop-opacity="0"/></radialGradient>
+      <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6dc9a"/><stop offset="1" stop-color="#e8b04a"/></linearGradient>
+      <linearGradient id="r1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a4d5b"/><stop offset="1" stop-color="#1c3743"/></linearGradient>
+      <linearGradient id="r2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d3944"/><stop offset="1" stop-color="#132830"/></linearGradient>
+      <linearGradient id="r3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#132a33"/><stop offset="1" stop-color="#0b1a21"/></linearGradient>
+    </defs>
+    <g class="l0">
+      <rect width="1600" height="900" fill="url(#sky)"/>
+      <circle cx="1000" cy="400" r="470" fill="url(#glow)"/>
+      <g fill="#cfe6f0"><circle cx="180" cy="120" r="2"/><circle cx="420" cy="210" r="1.6"/><circle cx="660" cy="90" r="2.2"/><circle cx="820" cy="250" r="1.4"/><circle cx="1330" cy="130" r="2"/><circle cx="1500" cy="260" r="1.6"/><circle cx="1180" cy="70" r="1.4"/></g>
+      <circle cx="1000" cy="400" r="260" fill="none" stroke="#e8b04a" stroke-opacity=".10" stroke-width="2"/>
+      <circle cx="1000" cy="400" r="205" fill="none" stroke="#e8b04a" stroke-opacity=".2" stroke-width="2"/>
+      <circle cx="1000" cy="400" r="150" fill="url(#sun)"/>
+    </g>
+    <g class="l1"><path d="M-100 600 C50 540 160 520 280 560 S500 640 660 590 S900 480 1060 520 S1320 600 1700 540 L1700 1400 L-100 1400Z" fill="url(#r1)"/><path d="M-100 600 C50 540 160 520 280 560 S500 640 660 590 S900 480 1060 520 S1320 600 1700 540" fill="none" stroke="#9fd4ff" stroke-opacity=".18" stroke-width="2"/></g>
+    <g class="l2"><path d="M-100 700 C40 650 200 630 340 670 S600 750 780 700 S1080 610 1240 650 S1520 710 1700 690 L1700 1400 L-100 1400Z" fill="url(#r2)"/><path d="M-100 700 C40 650 200 630 340 670 S600 750 780 700 S1080 610 1240 650 S1520 710 1700 690" fill="none" stroke="#9fd4ff" stroke-opacity=".14" stroke-width="2"/></g>
+    <g class="l3"><path d="M-100 790 C100 750 240 740 420 780 S720 840 910 790 S1240 740 1700 790 L1700 1400 L-100 1400Z" fill="url(#r3)"/><path d="M-100 790 C100 750 240 740 420 780 S720 840 910 790 S1240 740 1700 790" fill="none" stroke="#9fd4ff" stroke-opacity=".1" stroke-width="2"/></g>
+  </svg><div class="scrim"></div><div class="night"></div>
+  <main>
+    <div class="eyebrow">GNOME Shell 51 · Wayland</div>
+    <h1>Your Wallpaper Engine library, live on the desktop.</h1>
+    <p class="lede">Video, web and scene wallpapers from your Steam copy, playing as the GNOME background — behind the overview and the lock screen too.</p>
+    <div class="actions">
+      <a class="btn" href="https://github.com/KoukeNeko/GNOME-Paper-Engine/releases/latest">Download .deb</a>
+      <a class="link" href="https://github.com/KoukeNeko/GNOME-Paper-Engine">View on GitHub ↗</a>
+    </div>
+    <div class="note">Needs Wallpaper Engine on Steam · Ubuntu 26.10</div>
+  </main>
+</header>
+
+<section class="sec" id="everywhere">
+  <span class="eyebrow">Everywhere</span>
+  <div class="intro">
+    <h2>One wallpaper, everywhere the background shows.</h2>
+    <p>Not a window behind your windows. It is the desktop background, so the overview, every workspace and the lock screen play it too.</p>
+  </div>
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-i="0">Desktop</button>
+    <button role="tab" aria-selected="false" data-i="1">Overview</button>
+    <button role="tab" aria-selected="false" data-i="2">Workspaces</button>
+    <button role="tab" aria-selected="false" data-i="3">Lock screen</button>
+  </div>
+  <div class="win reveal-img">
+    <div class="tb"><i></i><i></i><i></i><span id="tbTitle">Desktop</span></div>
+    <div class="stage" id="stage">
+      <img class="on" src="desktop.jpg" alt="A scene wallpaper as the desktop background">
+      <img src="overview.jpg" alt="Activities overview with the live wallpaper behind it" loading="lazy">
+      <img src="workspaces.jpg" alt="The overview with windows on several workspaces, each showing the wallpaper" loading="lazy">
+      <img src="lock-screen.jpg" alt="The lock screen with the wallpaper playing behind the clock" loading="lazy">
+    </div>
+    <div class="credit">Wallpaper shown is Steam Workshop content, © its author.</div>
+  </div>
+  <p class="caption" id="caption">Behind your windows, on the desktop itself.</p>
+</section>
+
+<section class="sec" id="picker">
+  <div class="split">
+    <div>
+      <span class="eyebrow">The picker</span>
+      <h2 style="margin-top:18px">Browse, preview, apply.</h2>
+      <ul class="points">
+        <li><b>1</b><div><h3>Library and Workshop</h3><p>Your wallpapers by type, plus the Steam Workshop: trending, newest, most subscribed, and what you subscribed to.</p></div></li>
+        <li><b>2</b><div><h3>Grid</h3><p>Click a wallpaper to see its details, double-click to apply it.</p></div></li>
+        <li><b>3</b><div><h3>Details and options</h3><p>Preview, apply, and the options the wallpaper exposes: colours, sliders, toggles.</p></div></li>
+      </ul>
+    </div>
+    <div class="win reveal-img" style="position:relative">
+      <div class="tb"><i></i><i></i><i></i><span>Paper Engine</span></div>
+      <div style="position:relative">
+        <img src="picker.jpg" alt="The picker: library and Workshop on the left, wallpapers in the middle, details and options on the right" loading="lazy">
+        <span class="pin" style="left:6%;top:18%">1</span>
+        <span class="pin" style="left:46%;top:32%">2</span>
+        <span class="pin" style="left:86%;top:24%">3</span>
+      </div>
+      <div class="credit">Wallpapers and thumbnails shown are Steam Workshop content, © their authors.</div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="types">
+  <span class="eyebrow">What works</span>
+  <div class="intro">
+    <h2>Three of four wallpaper types.</h2>
+    <p>Wallpaper Engine ships four kinds. Video and web need nothing extra; scenes use a renderer the picker installs for you.</p>
+  </div>
+  <div class="rows">
+    <div class="row"><h3>Video</h3><p>Built-in renderer (WebKitGTK + GStreamer)</p><span class="tag">Out of the box</span></div>
+    <div class="row"><h3>Web</h3><p>Built-in renderer (WebKitGTK)<small>User properties and audio-reactive data are supported.</small></p><span class="tag">Out of the box</span></div>
+    <div class="row"><h3>Scene</h3><p>linux-wallpaperengine, patched<small>Most 2D scenes work, with scripts, text, clicks and media displays. About 1 GB to download, a few minutes to build.</small></p><span class="tag">One-click install</span></div>
+    <div class="row"><h3>Application</h3><p>Windows executables</p><span class="tag no">Not supported</span></div>
+  </div>
+  <p class="fine">Scenes with a 3D perspective camera are not supported by the scene renderer yet; the picker marks those it recognises as Not supported.</p>
+
+  <div class="media">
+    <figure class="reveal-img"><img src="media-display.png" alt="A billboard in a scene showing the song, artist, position and cover" loading="lazy"><figcaption class="credit">Scene shown is Steam Workshop content, © its author.</figcaption></figure>
+    <div>
+      <h3>Scenes that read your player.</h3>
+      <p>A scene’s media display shows what is playing in any MPRIS player: title, artist, position, and the cover when the player hands it over as a local file.</p>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="daily">
+  <span class="eyebrow">Day to day</span>
+  <div class="intro"><h2>Stays out of the way.</h2></div>
+  <div class="grid2">
+    <div class="card"><h3>Pauses when covered</h3><p>Playback pauses while every monitor is covered by a maximized or fullscreen window.</p></div>
+    <div class="card"><h3>Several monitors</h3><p>Apply a wallpaper to all of them, or to one.</p></div>
+    <div class="card"><h3>Playlist</h3><p>Add wallpapers to a playlist and rotate them on a timer.</p></div>
+    <div class="card"><h3>A still as the system background</h3><p>A still of the wallpaper is set as the desktop background, and the previous background comes back when you stop.</p></div>
+  </div>
+  <p class="fine">The picker is available in English and Traditional Chinese and follows the system language.</p>
+</section>
+
+<section class="sec" id="install">
+  <span class="eyebrow">Install</span>
+  <div class="intro">
+    <h2>From Steam to your desktop in four steps.</h2>
+    <p>Needs Ubuntu with GNOME Shell 51 on Wayland, and Wallpaper Engine owned on Steam. Nothing from Wallpaper Engine is bundled.</p>
+  </div>
+  <ol class="steps" id="steps">
+    <span class="line"></span>
+    <li class="step"><span class="n">1</span><div><h3>Get your wallpapers</h3><p>In Steam, enable Steam Play for all other titles and install Wallpaper Engine; it only has to be installed, not run. Then subscribe to wallpapers in the Workshop.</p></div></li>
+    <li class="step"><span class="n">2</span><div><h3>Install the package</h3><p>Download the .deb from the latest release, then:</p>
+      <div class="code"><code><span>$ </span>sudo apt install ./gnome-paper-engine_*_all.deb</code><button class="copy" data-copy="sudo apt install ./gnome-paper-engine_*_all.deb">Copy</button></div></div></li>
+    <li class="step"><span class="n">3</span><div><h3>Log out and back in, then enable</h3><p>A running GNOME Shell only discovers new extensions at login.</p>
+      <div class="code"><code><span>$ </span>gnome-extensions enable gnome-paper-engine@koukeneko.github.io</code><button class="copy" data-copy="gnome-extensions enable gnome-paper-engine@koukeneko.github.io">Copy</button></div></div></li>
+    <li class="step"><span class="n">4</span><div><h3>Open Paper Engine</h3><p>Find it in the app grid. For scene wallpapers, press Install on the bar above the wallpapers.</p></div></li>
+  </ol>
+  <div class="cta">
+    <a class="btn" href="https://github.com/KoukeNeko/GNOME-Paper-Engine/releases/latest">Download .deb</a>
+    <a class="link" href="https://github.com/KoukeNeko/GNOME-Paper-Engine#install">Install from source ↗</a>
+  </div>
+</section>
+
+<footer>
+  <div>GNOME Paper Engine · GPL-3.0-or-later</div>
+  <nav><a href="https://github.com/KoukeNeko/GNOME-Paper-Engine">GitHub</a><a href="https://github.com/KoukeNeko/GNOME-Paper-Engine/releases">Releases</a><a href="https://store.steampowered.com/app/431960/Wallpaper_Engine/">Wallpaper Engine</a></nav>
+  <small>The wallpapers and thumbnails in the screenshots are Steam Workshop content. They are the work of their respective authors, who hold the copyright; they are shown only to illustrate the software and are not part of this project or covered by its licence.</small>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script>
+(() => {
+  // Tabs: crossfade the screenshots.
+  const tabs = [...document.querySelectorAll('.tabs button')];
+  const shots = [...document.querySelectorAll('#stage img')];
+  const captions = [
+    ['Desktop', 'Behind your windows, on the desktop itself.'],
+    ['Overview', 'Behind the Activities overview and its workspace thumbnails.'],
+    ['Workspaces', 'On every workspace, behind the windows on each.'],
+    ['Lock screen', 'Behind the lock screen clock, slightly dimmed.'],
+  ];
+  const select = (i) => {
+    tabs.forEach((t, n) => t.setAttribute('aria-selected', n === i));
+    shots.forEach((s, n) => s.classList.toggle('on', n === i));
+    document.getElementById('tbTitle').textContent = captions[i][0];
+    document.getElementById('caption').textContent = captions[i][1];
+  };
+  tabs.forEach((t, i) => t.addEventListener('click', () => select(i)));
+
+  // Copy buttons.
+  document.querySelectorAll('.copy').forEach((b) => b.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = 'Copied'; }
+    catch { b.textContent = 'Select and copy'; }
+    setTimeout(() => (b.textContent = 'Copy'), 1600);
+  }));
+
+  if (!window.gsap || !window.ScrollTrigger) return;
+  gsap.registerPlugin(ScrollTrigger);
+
+  const mm = gsap.matchMedia();
+
+  mm.add('(prefers-reduced-motion: no-preference)', () => {
+    // Hero depth: the wallpaper pushes in slowly, the headline lifts away faster,
+    // and the stage fades to the page colour as the next section arrives.
+    const tl = gsap.timeline({ scrollTrigger: { trigger: '.hero', start: 'top top', end: '+=100%', pin: true, scrub: true } });
+    tl.to('.hero .art', { scale: 1.18, transformOrigin: '62% 44%', duration: 1, ease: 'none' }, 0)
+      .to('.hero .l0', { y: 30, duration: 1, ease: 'none' }, 0)
+      .to('.hero .l1', { y: -60, duration: 1, ease: 'none' }, 0)
+      .to('.hero .l2', { y: -130, duration: 1, ease: 'none' }, 0)
+      .to('.hero .l3', { y: -220, duration: 1, ease: 'none' }, 0)
+      .to('.hero main', { yPercent: -35, opacity: 0, duration: .7, ease: 'none' }, 0)
+      .to('.hero .night', { opacity: 1, duration: .45, ease: 'none' }, 0.55);
+
+    // Sections reveal once, each in the way its content behaves.
+    const once = { once: true };
+    gsap.utils.toArray('.sec > .eyebrow, .sec .intro > *, .fine').forEach((el) => {
+      gsap.from(el, { y: 28, opacity: 0, duration: .7, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 88%', ...once } });
+    });
+    // Screenshots: unveiled from the top while settling in from slightly large.
+    gsap.utils.toArray('.reveal-img').forEach((el) => {
+      gsap.fromTo(el, { clipPath: 'inset(0 0 100% 0)', scale: 1.08 },
+        { clipPath: 'inset(0 0 0% 0)', scale: 1, duration: 1.1, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 85%', ...once } });
+    });
+    // Picker points: in reading order, one after another.
+    gsap.from('.points li', { x: -24, opacity: 0, duration: .6, stagger: .12, ease: 'power3.out', scrollTrigger: { trigger: '.points', start: 'top 82%', ...once } });
+    // Type rows and cards: drop in and settle.
+    gsap.from('.row', { y: 24, opacity: 0, duration: .6, stagger: .09, ease: 'back.out(1.4)', scrollTrigger: { trigger: '.rows', start: 'top 82%', ...once } });
+    gsap.from('.card', { y: 36, opacity: 0, duration: .7, stagger: .1, ease: 'back.out(1.3)', scrollTrigger: { trigger: '.grid2', start: 'top 82%', ...once } });
+    gsap.from('.media > div', { y: 28, opacity: 0, duration: .7, ease: 'power3.out', scrollTrigger: { trigger: '.media', start: 'top 80%', ...once } });
+    // Install: the connecting line is drawn first, the step marker lands after it.
+    const steps = gsap.utils.toArray('.step');
+    const stepsEl = document.getElementById('steps');
+    const line = stepsEl.querySelector('.line');
+    gsap.to(line, { height: () => stepsEl.offsetHeight - 44, ease: 'none',
+      scrollTrigger: { trigger: stepsEl, start: 'top 70%', end: 'bottom 70%', scrub: true } });
+    steps.forEach((s) => {
+      gsap.from(s.querySelector('div'), { y: 24, opacity: 0, duration: .6, ease: 'power3.out', scrollTrigger: { trigger: s, start: 'top 80%', ...once } });
+      ScrollTrigger.create({ trigger: s, start: 'top 70%', onEnter: () => s.classList.add('on') });
+    });
+  });
+
+  // Created after the hero pin so their positions include its scroll distance.
+  document.querySelectorAll('.dock a[data-s]').forEach((a) => {
+    const sec = document.getElementById(a.dataset.s);
+    ScrollTrigger.create({ trigger: sec, start: 'top 55%', end: 'bottom 55%',
+      onToggle: (self) => a.classList.toggle('on', self.isActive) });
+  });
+
+  mm.add('(prefers-reduced-motion: reduce)', () => {
+    document.querySelectorAll('.step').forEach((s) => s.classList.add('on'));
+    document.querySelector('#steps .line').style.display = 'none';
+  });
+})();
+</script>
+</body>
+</html>
