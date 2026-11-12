@@ -27,6 +27,7 @@ const CARDS_PER_BATCH = 12;
 const SEARCH_DELAY_MS = 400;
 // Options shown in the details pane before "show all".
 const COLLAPSED_PROPERTIES = 6;
+const DETAIL_PANE_WIDTH = 348;
 
 const STEAM_INSTALL_URI = 'steam://install/431960';
 
@@ -73,7 +74,6 @@ const WORKSHOP_TAGS = {
 };
 
 const STYLE = `
-.gpe-sidebar { background-color: alpha(currentColor, 0.04); }
 .gpe-section-title { font-size: 0.85em; font-weight: 600; opacity: 0.65; margin: 14px 12px 4px; }
 .gpe-thumb { border-radius: 12px; }
 .gpe-card { padding: 6px; border-radius: 14px; }
@@ -256,22 +256,27 @@ class Picker {
 
     // ───────── Layout ─────────
 
+    // The stock libadwaita split views, as in GNOME Settings or Files: they
+    // give the sidebar its standard look and width and place the window
+    // controls on whichever pane ends up at the edge.
     _buildLayout() {
-        const layout = new Gtk.Box();
-        layout.append(this._buildSidebar());
-        layout.append(new Gtk.Separator({orientation: Gtk.Orientation.VERTICAL}));
-        layout.append(this._buildContent());
-        layout.append(new Gtk.Separator({orientation: Gtk.Orientation.VERTICAL}));
-        layout.append(this._buildDetailPane());
-        return layout;
+        const contentWithDetails = new Adw.OverlaySplitView({
+            sidebar_position: Gtk.PackType.END,
+            sidebar: this._buildDetailPane(),
+            content: this._buildContent(),
+            min_sidebar_width: DETAIL_PANE_WIDTH,
+            max_sidebar_width: DETAIL_PANE_WIDTH,
+        });
+        return new Adw.NavigationSplitView({
+            sidebar: new Adw.NavigationPage({title: 'Paper Engine', child: this._buildSidebar()}),
+            content: new Adw.NavigationPage({title: 'Paper Engine', child: contentWithDetails}),
+            min_sidebar_width: 220,
+            max_sidebar_width: 260,
+        });
     }
 
     _buildSidebar() {
-        const header = new Adw.HeaderBar({
-            show_end_title_buttons: false,
-            show_start_title_buttons: false,
-            title_widget: new Adw.WindowTitle({title: 'Paper Engine'}),
-        });
+        const header = new Adw.HeaderBar({title_widget: new Adw.WindowTitle({title: 'Paper Engine'})});
 
         this._navRows = new Map();
         const navigation = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL});
@@ -302,7 +307,7 @@ class Picker {
         body.append(new Gtk.ScrolledWindow({child: navigation, vexpand: true, hscrollbar_policy: Gtk.PolicyType.NEVER}));
         body.append(this._nowPlaying);
 
-        const view = new Adw.ToolbarView({content: body, width_request: 236, hexpand: false, css_classes: ['gpe-sidebar']});
+        const view = new Adw.ToolbarView({content: body});
         view.add_top_bar(header);
         return view;
     }
@@ -319,11 +324,7 @@ class Picker {
                 this._reloadLibrary();
         });
 
-        const header = new Adw.HeaderBar({
-            show_end_title_buttons: false,
-            show_start_title_buttons: false,
-            title_widget: this._title,
-        });
+        const header = new Adw.HeaderBar({title_widget: this._title});
         header.pack_end(refreshButton);
         header.pack_end(this._searchEntry);
 
@@ -415,8 +416,6 @@ class Picker {
         const header = new Adw.HeaderBar({title_widget: new Adw.WindowTitle({title: _('Details')})});
         this._detailPane = new Adw.ToolbarView({
             content: new Gtk.ScrolledWindow({child: this._detailBox, hscrollbar_policy: Gtk.PolicyType.NEVER}),
-            width_request: 348,
-            hexpand: false,
         });
         this._detailPane.add_top_bar(header);
         return this._detailPane;
