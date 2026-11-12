@@ -1,27 +1,63 @@
-# GNOME Paper Engine
+<p align="center">
+  <img src="icons/gnome-paper-engine.svg" alt="Paper Engine" width="160">
+</p>
 
-Use the wallpapers from your Steam copy of [Wallpaper Engine](https://store.steampowered.com/app/431960/Wallpaper_Engine/)
-as live desktop backgrounds on Ubuntu / GNOME (Wayland).
+<h1 align="center">GNOME Paper Engine</h1>
+
+<p align="center">
+  <strong>Your Wallpaper Engine library, live on the GNOME desktop.</strong><br>
+  Video, web and scene wallpapers from your Steam copy of
+  <a href="https://store.steampowered.com/app/431960/Wallpaper_Engine/">Wallpaper Engine</a>
+  as the desktop background on Ubuntu / GNOME (Wayland), with a picker that
+  also browses the Steam Workshop.
+</p>
+
+<p align="center">
+  <img alt="GNOME Shell 51" src="https://img.shields.io/badge/GNOME_SHELL-51-4A86CF?style=for-the-badge&logo=gnome&logoColor=white">
+  <img alt="Ubuntu 26.10" src="https://img.shields.io/badge/UBUNTU-26.10-E95420?style=for-the-badge&logo=ubuntu&logoColor=white">
+  <img alt="Wayland" src="https://img.shields.io/badge/WAYLAND-NATIVE-FFBC00?style=for-the-badge&logo=wayland&logoColor=white">
+  <a href="https://github.com/KoukeNeko/GNOME-Paper-Engine/actions/workflows/build.yml"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/KoukeNeko/GNOME-Paper-Engine/build.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=BUILD"></a>
+  <a href="LICENSE"><img alt="GPL-3.0-or-later" src="https://img.shields.io/badge/LICENSE-GPL--3.0-4CAF50?style=for-the-badge&logo=gnu&logoColor=white"></a>
+  <a href="https://github.com/KoukeNeko/GNOME-Paper-Engine/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/KoukeNeko/GNOME-Paper-Engine?style=for-the-badge&logo=github&label=STARS&color=2196F3"></a>
+</p>
+
+<p align="center">
+  <a href="#install"><strong>Install</strong></a>
+  · <a href="#see-it-in-action">See it in action</a>
+  · <a href="#what-works">What works</a>
+  · <a href="#using-it">Using it</a>
+  · <a href="#how-it-works">How it works</a>
+</p>
 
 It is a GNOME Shell extension with a wallpaper picker. It needs a Wallpaper
 Engine licence on Steam — the wallpapers and the scene assets come from your
 own Steam library; nothing is bundled here.
 
-![A scene wallpaper as the desktop background](docs/desktop.jpg)
+## See it in action
 
-![The picker: library and Workshop on the left, wallpapers in the middle, details and options on the right](docs/picker.jpg)
+<p align="center">
+  <img src="docs/desktop.jpg" width="85%" alt="A scene wallpaper as the desktop background">
+</p>
 
-![The overview with windows on several workspaces, each showing the wallpaper](docs/workspaces.jpg)
+<p align="center">
+  <img src="docs/picker.jpg" width="85%" alt="The picker: library and Workshop on the left, wallpapers in the middle, details and options on the right">
+</p>
+
+<p align="center">
+  <img src="docs/workspaces.jpg" width="85%" alt="The overview with windows on several workspaces, each showing the wallpaper">
+</p>
 
 | The overview and its workspace thumbnails show the wallpaper | A scene's media display, fed by the player that is running |
 | --- | --- |
 | ![Activities overview with the live wallpaper behind it](docs/overview.jpg) | ![A billboard in a scene showing the song, artist, position and cover](docs/media-display.png) |
 
+## What works
+
 | Wallpaper type | Rendered by | Status |
 | --- | --- | --- |
 | Video | built-in renderer (WebKitGTK + GStreamer) | works out of the box |
 | Web | built-in renderer (WebKitGTK) | works out of the box; user properties and audio-reactive data supported |
-| Scene | [linux-wallpaperengine](https://github.com/Almamu/linux-wallpaperengine), patched | needs the one-time setup below; most 2D scenes work, with scripts, text, clicks and media displays |
+| Scene | [linux-wallpaperengine](https://github.com/Almamu/linux-wallpaperengine), patched | one click to install from the picker; most 2D scenes work, with scripts, text, clicks and media displays |
 | Application | — | not supported (Windows executables) |
 
 ## Requirements
@@ -29,7 +65,9 @@ own Steam library; nothing is bundled here.
 - Ubuntu with GNOME Shell 51 on Wayland (developed on Ubuntu 26.10).
 - Steam, with Wallpaper Engine owned.
 
-No extra packages are needed for video and web wallpapers.
+No extra packages are needed for video and web wallpapers. Building the
+scene renderer needs `git`, `cmake`, `ninja-build` and `g++`, which the
+package recommends.
 
 ## Install
 
@@ -76,25 +114,31 @@ this way takes precedence over the package, so use one or the other.
    with the projects that ship with Wallpaper Engine.
 
 You can also add your own folders of wallpaper projects under
-*Settings → Extra wallpaper folders*.
+*Playback and performance → Other wallpaper folders*.
 
 ### Scene wallpapers
 
-Scene wallpapers need a renderer that is built once per user. The picker
-offers to do it: press **Install** on the bar that appears above the
-wallpapers. The same can be done from a terminal:
+Scene wallpapers need a renderer that is built once per user. Press
+**Install** on the bar that appears above the wallpapers in the picker; it
+asks first, then runs in the background, and the scenes become available
+when it is done. If it fails, the bar offers the log.
 
-```bash
-gnome-paper-engine-setup-scene   # installed from the .deb
-./setup-scene-renderer.sh            # from the source folder
-```
-
-This builds linux-wallpaperengine into `~/.local/share/gnome-paper-engine`
+It builds linux-wallpaperengine into `~/.local/share/gnome-paper-engine`
 without root: its ~100 build dependencies are downloaded and unpacked there
 rather than installed, because installing them system-wide would swap out
 JACK libraries that Steam uses. It downloads roughly 1 GB and takes a few
-minutes. Re-run it after a distribution upgrade; delete the directory to
+minutes. Do it again after a distribution upgrade; delete the directory to
 remove it.
+
+<details>
+<summary>From a terminal instead</summary>
+
+```bash
+gnome-paper-engine-setup-scene   # installed from the .deb
+./setup-scene-renderer.sh        # from the source folder
+```
+
+</details>
 
 `patches/` holds fixes this project applies on top of linux-wallpaperengine so
 puppet-warp layers (animated characters) are drawn, scene scripts run, and
@@ -185,7 +229,8 @@ A source-folder install:
 ```bash
 gnome-extensions disable gnome-paper-engine@koukeneko.github.io
 rm -rf ~/.local/share/gnome-shell/extensions/gnome-paper-engine@koukeneko.github.io \
-       ~/.local/share/applications/gnome-paper-engine.desktop
+       ~/.local/share/applications/gnome-paper-engine.desktop \
+       ~/.local/share/icons/hicolor/scalable/apps/gnome-paper-engine.svg
 ```
 
 Either way the scene renderer stays in your home folder until you delete it.
