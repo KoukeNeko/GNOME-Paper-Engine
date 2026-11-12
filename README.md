@@ -224,6 +224,35 @@ extension such as Blur my Shell draws a copy of it.
 workspaces, and out of the overview, dock and Alt-Tab — the same technique the
 Desktop Icons extension uses, and the wallpaper sits below its icons.
 
+```mermaid
+flowchart LR
+    steam[("Steam library<br>Workshop and bundled wallpapers")]
+    picker["Picker<br>prefs.js"]
+    settings{{"GSettings"}}
+    extension["Shell extension<br>extension.js"]
+    builtin["Built-in renderer<br>renderer.js · WebKitGTK"]
+    scene["Scene renderer<br>linux-wallpaperengine"]
+    windows["Wallpaper windows<br>DESKTOP type, one per monitor"]
+    clones["Clones<br>overview · thumbnails · lock screen · blur"]
+    still["Still image<br>system desktop background"]
+    workshop(["Steam Workshop page"])
+    mpris(["MPRIS player"])
+
+    steam -- "project.json" --> picker
+    workshop -- "browse and search" --> picker
+    picker -- "wallpaper and options" --> settings
+    settings --> extension
+    extension -- "video · web" --> builtin
+    extension -- "scene" --> scene
+    extension -. "pointer, pause, volume over stdin" .-> builtin
+    extension -. "pointer over stdin" .-> scene
+    mpris -. "title, position, cover" .-> scene
+    builtin --> windows
+    scene --> windows
+    windows --> clones
+    windows --> still
+```
+
 - `extension/renderer.js` – GTK 3 + WebKitGTK process for video and web
   wallpapers, one window per monitor, controlled over stdin.
 - `extension/library.js` – finds Steam libraries and reads `project.json`.
