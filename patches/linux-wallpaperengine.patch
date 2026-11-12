@@ -87,7 +87,7 @@ index 2150c6b..bf61825 100644
      MouseClickStatus m_rightClick = Released;
  };
 diff --git a/src/WallpaperEngine/Render/Objects/CImage.cpp b/src/WallpaperEngine/Render/Objects/CImage.cpp
-index 470e295..093f3e4 100644
+index 470e295..05100e9 100644
 --- a/src/WallpaperEngine/Render/Objects/CImage.cpp
 +++ b/src/WallpaperEngine/Render/Objects/CImage.cpp
 @@ -535,7 +535,8 @@ void CImage::updatePuppetPositionBuffer (const glm::vec2& size) {
@@ -124,7 +124,29 @@ index 470e295..093f3e4 100644
  	}
  
  	pass->setDestination (drawTo);
-@@ -1121,6 +1132,17 @@ void CImage::updateScreenSpacePosition () {
+@@ -1111,7 +1122,20 @@ void CImage::updateScreenSpacePosition () {
+     if (this->getScene ().getScene ().camera.parallax.enabled
+ 	&& !this->getScene ().getContext ().getApp ().getContext ().settings.mouse.disableparallax) {
+ 	const double parallaxAmount = this->getScene ().getScene ().camera.parallax.amount->value->getFloat ();
+-	const glm::vec2 depth = this->getImage ().parallaxDepth->value->getVec2 ();
++	glm::vec2 depth = this->getImage ().parallaxDepth->value->getVec2 ();
++	// a child layer is attached to its parent, so it has to move by the parent's parallax depth
++	// (the outermost one's); with its own, usually unset, depth it would drift apart from it
++	const Object* ancestor = &this->getImage ();
++	for (int guard = 0; guard < 32 && ancestor->parent.has_value (); guard++) {
++	    const auto* parentObject = this->getScene ().getObject (ancestor->parent.value ());
++	    if (parentObject == nullptr) {
++		break;
++	    }
++	    ancestor = &parentObject->getObject ();
++	    if (ancestor->is<Image> ()) {
++		depth = ancestor->as<Image> ()->parallaxDepth->value->getVec2 ();
++	    }
++	}
+ 	const glm::vec2* displacement = this->getScene ().getParallaxDisplacement ();
+ 	const float referenceSize = static_cast<float> (this->getScene ().getWidth ());
+ 	float x = (depth.x + parallaxAmount) * displacement->x * referenceSize;
+@@ -1121,6 +1145,17 @@ void CImage::updateScreenSpacePosition () {
  
      this->m_modelViewProjectionScreen = mvp;
      this->m_modelViewProjectionScreenInverse = glm::inverse (mvp);
@@ -155,11 +177,23 @@ index 07eeda2..cbf2a99 100644
      glm::mat4 m_modelViewProjectionPass = {};
      glm::mat4 m_modelViewProjectionCopy = {};
      glm::mat4 m_modelViewProjectionScreenInverse = {};
+diff --git a/src/WallpaperEngine/Render/Objects/Effects/CPass.cpp b/src/WallpaperEngine/Render/Objects/Effects/CPass.cpp
+index e93c293..b0d31b8 100644
+--- a/src/WallpaperEngine/Render/Objects/Effects/CPass.cpp
++++ b/src/WallpaperEngine/Render/Objects/Effects/CPass.cpp
+@@ -878,6 +878,7 @@ void CPass::setupUniforms () {
+     this->addUniform ("g_ViewProjectionMatrix", &this->m_viewProjectionMatrix);
+     this->addUniform ("g_PointerPosition", scene.getMousePosition ());
+     this->addUniform ("g_PointerPositionLast", scene.getMousePositionLast ());
++    this->addUniform ("g_ParallaxPosition", scene.getParallaxPosition ());
+     this->addUniform ("g_EffectTextureProjectionMatrix", glm::mat4 (1.0));
+     this->addUniform ("g_EffectTextureProjectionMatrixInverse", glm::mat4 (1.0));
+     this->addUniform ("g_TexelSize", glm::vec2 (1.0 / scene.getWidth (), 1.0 / scene.getHeight ()));
 diff --git a/src/WallpaperEngine/Render/Wallpapers/CScene.cpp b/src/WallpaperEngine/Render/Wallpapers/CScene.cpp
-index ab63d78..25e3c24 100644
+index ab63d78..6c7ca53 100644
 --- a/src/WallpaperEngine/Render/Wallpapers/CScene.cpp
 +++ b/src/WallpaperEngine/Render/Wallpapers/CScene.cpp
-@@ -311,9 +311,10 @@ void CScene::renderFrame (const glm::ivec4& viewport) {
+@@ -311,13 +311,17 @@ void CScene::renderFrame (const glm::ivec4& viewport) {
  	&& !this->getContext ().getApp ().getContext ().settings.mouse.disableparallax) {
  	const float influence = this->getScene ().camera.parallax.mouseInfluence->value->getFloat ();
  	const float amount = this->getScene ().camera.parallax.amount->value->getFloat ();
@@ -173,3 +207,40 @@ index ab63d78..25e3c24 100644
  
  	const glm::vec2 centeredMouse = this->m_mousePosition - glm::vec2 (0.5f, 0.5f);
  	this->m_parallaxDisplacement
+ 	    = glm::mix (this->m_parallaxDisplacement, (centeredMouse * amount) * influence, delay);
++	// effects such as depth parallax follow the pointer themselves, independently of the camera amount
++	this->m_parallaxPosition
++	    = glm::mix (this->m_parallaxPosition, glm::vec2 (0.5f, 0.5f) + centeredMouse * influence, delay);
+     }
+ 
+     // run a tick in the javascript logic
+@@ -423,6 +427,8 @@ const glm::vec2* CScene::getMousePositionNormalized () const { return &this->m_m
+ 
+ const glm::vec2* CScene::getParallaxDisplacement () const { return &this->m_parallaxDisplacement; }
+ 
++const glm::vec2* CScene::getParallaxPosition () const { return &this->m_parallaxPosition; }
++
+ const std::vector<CObject*>& CScene::getObjectsByRenderOrder () const { return this->m_objectsByRenderOrder; }
+ 
+ const CObject* CScene::getObject (int id) const {
+diff --git a/src/WallpaperEngine/Render/Wallpapers/CScene.h b/src/WallpaperEngine/Render/Wallpapers/CScene.h
+index 9e12f3f..128bed8 100644
+--- a/src/WallpaperEngine/Render/Wallpapers/CScene.h
++++ b/src/WallpaperEngine/Render/Wallpapers/CScene.h
+@@ -41,6 +41,7 @@ public:
+     const glm::vec2* getMousePositionLast () const;
+     const glm::vec2* getMousePositionNormalized () const;
+     const glm::vec2* getParallaxDisplacement () const;
++    const glm::vec2* getParallaxPosition () const;
+ 
+     [[nodiscard]] const std::vector<CObject*>& getObjectsByRenderOrder () const;
+     [[nodiscard]] const CObject* getObject (int id) const;
+@@ -67,6 +68,8 @@ private:
+     glm::vec2 m_mousePositionLast = {};
+     glm::vec2 m_mousePositionNormalized = {};
+     glm::vec2 m_parallaxDisplacement = {};
++    /** Where the parallax "looks", 0..1 with 0.5 as the center; what shaders get as g_ParallaxPosition */
++    glm::vec2 m_parallaxPosition = { 0.5f, 0.5f };
+     std::shared_ptr<const CFBO> _rt_4FrameBuffer = nullptr;
+     std::shared_ptr<const CFBO> _rt_8FrameBuffer = nullptr;
+     std::shared_ptr<const CFBO> _rt_Bloom = nullptr;
