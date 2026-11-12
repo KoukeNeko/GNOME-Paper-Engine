@@ -98,11 +98,7 @@ Log out and back in, then turn the extension on once:
 gnome-extensions enable gnome-paper-engine@koukeneko.github.io
 ```
 
-Open **Paper Engine** from the app grid. To remove it again:
-
-```bash
-sudo apt remove gnome-paper-engine
-```
+Open **Paper Engine** from the app grid.
 
 ### From the source folder, without root
 
@@ -233,7 +229,11 @@ Desktop Icons extension uses, and the wallpaper sits below its icons.
 
 ## Uninstall
 
-The package: `sudo apt remove gnome-paper-engine`.
+The package:
+
+```bash
+sudo apt remove gnome-paper-engine
+```
 
 A source-folder install:
 
