@@ -21,7 +21,25 @@ const SORT_PARAMETERS = {
 
 const TYPE_BY_TAG = {Scene: 'scene', Video: 'video', Web: 'web'};
 
-const session = new Soup.Session({user_agent: 'Mozilla/5.0 (X11; Linux x86_64)', timeout: 20});
+// Browsing shows dozens of previews at a time: fetch them side by side, and
+// keep them on disk so a page that was seen before appears at once.
+const CACHE_SIZE_BYTES = 128 * 1024 * 1024;
+const session = new Soup.Session({
+    user_agent: 'Mozilla/5.0 (X11; Linux x86_64)', timeout: 20, max_conns: 16, max_conns_per_host: 12,
+});
+const cache = new Soup.Cache({
+    cache_dir: GLib.build_filenamev([GLib.get_user_cache_dir(), 'gnome-paper-engine', 'http']),
+    cache_type: Soup.CacheType.SINGLE_USER,
+});
+cache.set_max_size(CACHE_SIZE_BYTES);
+cache.load();
+session.add_feature(cache);
+
+/** Writes the index of the HTTP cache to disk; without it the cached files are not found again. */
+export function saveCache() {
+    cache.flush();
+    cache.dump();
+}
 
 /** The Steam client URL of a Workshop item's page. */
 export function steamPageUri(id) {

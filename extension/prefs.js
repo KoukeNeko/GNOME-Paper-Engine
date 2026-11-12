@@ -252,6 +252,7 @@ class Picker {
         this._settingsIds.forEach(id => this._settings.disconnect(id));
         this._monitors.forEach(monitor => monitor.cancel());
         this._cancellable.cancel();
+        Workshop.saveCache();
         if (this._batchSourceId)
             GLib.source_remove(this._batchSourceId);
         if (this._searchSourceId)
