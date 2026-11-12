@@ -92,13 +92,15 @@ or build it yourself with `./build-deb.sh` (it ends up in `dist/`), then:
 sudo apt install ./gnome-paper-engine_*_all.deb
 ```
 
-Log out and back in, then turn the extension on once:
+**Log out and back in**, then turn the extension on once:
 
 ```bash
 gnome-extensions enable gnome-paper-engine@koukeneko.github.io
 ```
 
-Open **Paper Engine** from the app grid.
+Open **Paper Engine** from the app grid. After installing a newer build,
+**log out and back in** again: a running GNOME Shell keeps the version it
+started with.
 
 ### From the source folder, without root
 
@@ -106,8 +108,8 @@ Open **Paper Engine** from the app grid.
 ./install.sh
 ```
 
-Log out and back in once (a running GNOME Shell only discovers new extensions
-at login), then open **Paper Engine** from the app grid. A copy installed
+**Log out and back in** once (a running GNOME Shell only discovers new
+extensions at login), then open **Paper Engine** from the app grid. A copy installed
 this way takes precedence over the package, so use one or the other.
 
 ### Getting wallpapers
@@ -134,11 +136,12 @@ It builds linux-wallpaperengine into `~/.local/share/gnome-paper-engine`
 without root: its ~100 build dependencies are downloaded and unpacked there
 rather than installed, because installing them system-wide would swap out
 JACK libraries that Steam uses. It downloads roughly 1 GB and takes a few
-minutes. Do it again after a distribution upgrade; delete the directory to
-remove it.
+minutes. Delete the directory to remove it; the bar and its button come back
+when the renderer is missing. After a distribution upgrade, build it again
+from a terminal.
 
 <details>
-<summary>From a terminal instead</summary>
+<summary>From a terminal</summary>
 
 ```bash
 gnome-paper-engine-setup-scene   # installed from the .deb
@@ -154,8 +157,9 @@ since that renderer does not play bone animations.
 
 Scenes that use a 3D perspective camera (a few of the samples bundled with
 Wallpaper Engine, e.g. *Neon Sunset*) are not supported by
-linux-wallpaperengine yet; the extension reports that the renderer keeps
-crashing and stops retrying.
+linux-wallpaperengine yet. The picker marks those it can recognise as
+*Not supported*; for any other scene whose renderer keeps crashing, the
+extension says so and stops retrying.
 
 ## Using it
 
