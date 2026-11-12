@@ -17,6 +17,7 @@
   <img alt="Ubuntu 26.10" src="https://img.shields.io/badge/UBUNTU-26.10-E95420?style=for-the-badge&logo=ubuntu&logoColor=white">
   <img alt="Wayland" src="https://img.shields.io/badge/WAYLAND-NATIVE-FFBC00?style=for-the-badge&logo=wayland&logoColor=white">
   <a href="https://github.com/KoukeNeko/GNOME-Paper-Engine/actions/workflows/build.yml"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/KoukeNeko/GNOME-Paper-Engine/build.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=BUILD"></a>
+  <a href="https://github.com/KoukeNeko/GNOME-Paper-Engine/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/KoukeNeko/GNOME-Paper-Engine?style=for-the-badge&logo=github&label=RELEASE&color=9C27B0"></a>
   <a href="LICENSE"><img alt="GPL-3.0-or-later" src="https://img.shields.io/badge/LICENSE-GPL--3.0-4CAF50?style=for-the-badge&logo=gnu&logoColor=white"></a>
   <a href="https://github.com/KoukeNeko/GNOME-Paper-Engine/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/KoukeNeko/GNOME-Paper-Engine?style=for-the-badge&logo=github&label=STARS&color=2196F3"></a>
 </p>
@@ -84,9 +85,9 @@ package recommends.
 
 ### As a .deb package
 
-Download the latest development build from the
-[dev release](https://github.com/KoukeNeko/GNOME-Paper-Engine/releases/tag/dev),
-or build it yourself with `./build-deb.sh` (it ends up in `dist/`), then:
+Download the package from the
+[latest release](https://github.com/KoukeNeko/GNOME-Paper-Engine/releases/latest),
+then:
 
 ```bash
 sudo apt install ./gnome-paper-engine_*_all.deb
@@ -101,6 +102,11 @@ gnome-extensions enable gnome-paper-engine@koukeneko.github.io
 Open **Paper Engine** from the app grid. After installing a newer build,
 **log out and back in** again: a running GNOME Shell keeps the version it
 started with.
+
+The [dev release](https://github.com/KoukeNeko/GNOME-Paper-Engine/releases/tag/dev)
+holds a build of the latest commit on `main`, for trying changes before they
+are released. `./build-deb.sh` builds the package from a checkout; it ends up
+in `dist/`.
 
 ### From the source folder, without root
 
@@ -230,6 +236,8 @@ Desktop Icons extension uses, and the wallpaper sits below its icons.
 - `tests/run.js` – tests for the parsers that read outside content
   (`gjs -m tests/run.js`).
 - `po/` – translations; `zh_TW.po` is the only one so far.
+- `distribution/` – the release notes, and how a release is made: pushing a
+  tag `vX.Y.Z` builds and publishes that version.
 
 ## Uninstall
 
