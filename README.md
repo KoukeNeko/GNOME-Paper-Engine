@@ -47,6 +47,10 @@ own Steam library; nothing is bundled here.
   <img src="docs/workspaces.jpg" width="85%" alt="The overview with windows on several workspaces, each showing the wallpaper">
 </p>
 
+<p align="center">
+  <img src="docs/lock-screen.jpg" width="85%" alt="The lock screen with the wallpaper playing behind the clock, slightly dimmed">
+</p>
+
 | The overview and its workspace thumbnails show the wallpaper | A scene's media display, fed by the player that is running |
 | --- | --- |
 | ![Activities overview with the live wallpaper behind it](docs/overview.jpg) | ![A billboard in a scene showing the song, artist, position and cover](docs/media-display.png) |
