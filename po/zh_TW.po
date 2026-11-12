@@ -331,3 +331,9 @@ msgstr "隨機順序"
 
 msgid "Apply to %s only"
 msgstr "只套用到 %s"
+
+msgid "Still image as desktop background"
+msgstr "以靜態畫面作為系統桌布"
+
+msgid "Shown while the live wallpaper is not running"
+msgstr "動態桌布未執行時顯示"

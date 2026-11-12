@@ -1018,6 +1018,13 @@ class Picker {
         settings.bind('show-on-lock-screen', lockScreenRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         playback.add(lockScreenRow);
 
+        const systemBackgroundRow = new Adw.SwitchRow({
+            title: _('Still image as desktop background'),
+            subtitle: _('Shown while the live wallpaper is not running'),
+        });
+        settings.bind('system-background', systemBackgroundRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        playback.add(systemBackgroundRow);
+
         const rotation = new Adw.PreferencesGroup({
             title: _('Playlist'),
             description: _('Add wallpapers to the playlist from their details, then let them rotate.'),

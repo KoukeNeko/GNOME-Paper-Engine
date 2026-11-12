@@ -39,6 +39,14 @@
       <default>true</default>
       <summary>Keep the wallpaper playing behind the lock screen</summary>
     </key>
+    <key name="system-background" type="b">
+      <default>true</default>
+      <summary>Set a still of the wallpaper as the desktop background</summary>
+    </key>
+    <key name="previous-background" type="as">
+      <default>[]</default>
+      <summary>The desktop background (picture-uri, picture-uri-dark) to put back when the wallpaper stops</summary>
+    </key>
     <key name="playlist" type="as">
       <default>[]</default>
       <summary>Project directories of the wallpapers to rotate through</summary>

@@ -453,3 +453,9 @@ msgstr ""
 #: extension/extension.js:310
 msgid "The wallpaper renderer keeps crashing; giving up on this wallpaper."
 msgstr ""
+
+msgid "Still image as desktop background"
+msgstr ""
+
+msgid "Shown while the live wallpaper is not running"
+msgstr ""

@@ -9,6 +9,7 @@ import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
+import Shell from 'gi://Shell';
 
 import {BackgroundManager} from 'resource:///org/gnome/shell/ui/background.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -33,6 +34,10 @@ const PAUSE_CHECK_DELAY_MS = 250;
 const POINTER_INTERVAL_MS = 33;
 const LOCK_SCREEN_CHECK_MS = 500;
 const LOCK_SCREEN_BRIGHTNESS = -0.2;
+// How long a wallpaper gets to load before a still of it is taken.
+const STILL_DELAY_MS = 5000;
+const BACKGROUND_SCHEMA = 'org.gnome.desktop.background';
+const BACKGROUND_KEYS = ['picture-uri', 'picture-uri-dark'];
 
 // Settings that only take effect by restarting the renderer.
 const RELAUNCH_KEYS = ['wallpaper', 'monitor-wallpapers', 'fit', 'scene-renderer', 'user-properties', 'muted', 'volume'];
@@ -61,6 +66,8 @@ export default class PaperEngineExtension extends Extension {
         this._pauseCheckId = 0;
         this._lockScreenId = 0;
         this._rotationId = 0;
+        this._stillId = 0;
+        this._backgroundSettings = new Gio.Settings({schema_id: BACKGROUND_SCHEMA});
         this._lockScreenClones = new Set();
         // Clutter.Clone of the wallpaper, on a copy of the system background → monitor index.
         this._backgroundClones = new Map();
@@ -140,6 +147,10 @@ export default class PaperEngineExtension extends Extension {
             GLib.source_remove(this._lockScreenId);
         if (this._rotationId)
             GLib.source_remove(this._rotationId);
+        if (this._stillId)
+            GLib.source_remove(this._stillId);
+        this._stillId = 0;
+        this._backgroundSettings = null;
         this._rotationId = 0;
         this._lockScreenId = 0;
         this._pointerId = 0;
@@ -168,6 +179,8 @@ export default class PaperEngineExtension extends Extension {
             this._queuePauseCheck();
         } else if (key === 'rotation-interval') {
             this._scheduleRotation();
+        } else if (key === 'system-background') {
+            this._scheduleStill();
         } else if (RELAUNCH_KEYS.includes(key)) {
             this._failures = 0;
             this._launch();
@@ -220,12 +233,78 @@ export default class PaperEngineExtension extends Extension {
             this._launchProject(dir, monitors);
 
         this._queuePauseCheck();
+        this._scheduleStill();
         if (this._renderers.length > 0 && !this._pointerId) {
             this._pointerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, POINTER_INTERVAL_MS, () => {
                 this._forwardPointer();
                 return GLib.SOURCE_CONTINUE;
             });
         }
+    }
+
+    // The desktop background of the system becomes a still of the wallpaper:
+    // it is what shows before the wallpaper starts (at login, or should the
+    // renderer fail) and what everything that reads the background gets.
+    _scheduleStill() {
+        if (this._stillId) {
+            GLib.source_remove(this._stillId);
+            this._stillId = 0;
+        }
+        if (this._renderers.length === 0 || !this._settings.get_boolean('system-background')) {
+            this._restoreSystemBackground();
+            return;
+        }
+        this._stillId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, STILL_DELAY_MS, () => {
+            this._stillId = 0;
+            this._saveStill().catch(e => console.warn(`${this.uuid}: no still of the wallpaper: ${e.message}`));
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    async _saveStill() {
+        const actor = this._wallpaperActor(Main.layoutManager.primaryIndex);
+        if (!actor)
+            return;
+        // The window's own picture, whatever is in front of it.
+        const texture = actor.paint_to_content(null).get_texture();
+
+        const directory = GLib.build_filenamev([GLib.get_user_cache_dir(), 'gnome-paper-engine']);
+        GLib.mkdir_with_parents(directory, 0o755);
+        // Written under another name first: the shell reloads the background
+        // as soon as its file changes, and must not find half a picture.
+        const partial = Gio.File.new_for_path(GLib.build_filenamev([directory, 'still.png.part']));
+        const still = Gio.File.new_for_path(GLib.build_filenamev([directory, 'still.png']));
+        const stream = partial.replace(null, false, Gio.FileCreateFlags.NONE, null);
+        await new Promise((resolve, reject) => {
+            Shell.Screenshot.composite_to_stream(texture, 0, 0, -1, -1, 1, null, 0, 0, 1, stream, (_source, result) => {
+                try {
+                    Shell.Screenshot.composite_to_stream_finish(result);
+                    resolve();
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        });
+        stream.close(null);
+        partial.move(still, Gio.FileCopyFlags.OVERWRITE, null, null);
+
+        // Disabled, stopped or switched off while the picture was being written.
+        if (!this._settings?.get_boolean('system-background') || this._renderers.length === 0)
+            return;
+        const uri = still.get_uri();
+        const current = BACKGROUND_KEYS.map(key => this._backgroundSettings.get_string(key));
+        if (this._settings.get_strv('previous-background').length === 0 && !current.includes(uri))
+            this._settings.set_strv('previous-background', current);
+        for (const key of BACKGROUND_KEYS)
+            this._backgroundSettings.set_string(key, uri);
+    }
+
+    _restoreSystemBackground() {
+        const previous = this._settings.get_strv('previous-background');
+        if (previous.length !== BACKGROUND_KEYS.length)
+            return;
+        BACKGROUND_KEYS.forEach((key, index) => this._backgroundSettings.set_string(key, previous[index]));
+        this._settings.set_strv('previous-background', []);
     }
 
     // Which wallpaper goes on which monitors: Map of project directory →
