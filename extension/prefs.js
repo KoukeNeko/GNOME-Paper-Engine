@@ -197,8 +197,9 @@ class WallpaperCard extends Gtk.FlowBoxChild {
 });
 
 class Picker {
-    constructor(window, settings) {
+    constructor(window, settings, extensionPath) {
         this._window = window;
+        this._extensionPath = extensionPath;
         this._settings = settings;
         this._view = 'all';
         this._projects = [];
@@ -365,9 +366,8 @@ class Picker {
             this._tagBar.append(chip);
         }
 
-        this._sceneNotice = new Adw.Banner({
-            title: _('Scene wallpapers need the scene renderer: run gnome-paper-engine-setup-scene in a terminal once (setup-scene-renderer.sh in a source checkout).'),
-        });
+        this._sceneNotice = new Adw.Banner();
+        this._sceneNotice.connect('button-clicked', () => this._sceneNoticeAction?.());
 
         this._flowBox = new Gtk.FlowBox({
             selection_mode: Gtk.SelectionMode.SINGLE,
@@ -491,14 +491,83 @@ class Picker {
         this._navRows.get('subscribed').count.label = `${this._projects.filter(project => project.workshopId).length}`;
         this._updatePlaylistCount();
 
-        this._sceneNotice.revealed = countOf('scene') > 0 &&
-            !findSceneRenderer(this._settings.get_string('scene-renderer'));
+        if (!this._installingRenderer) {
+            this._sceneNotice.revealed = countOf('scene') > 0 &&
+                !findSceneRenderer(this._settings.get_string('scene-renderer'));
+            this._setSceneNotice(_('Scene wallpapers need the scene renderer'), _('Install'),
+                () => this._confirmRendererInstall());
+        }
         this._updateNowPlaying();
         // Workshop views don't show the library, but their "subscribed" state depends on it.
         if (this._isWorkshopView)
             this._refreshBadges();
         else if (this._view !== 'settings')
             this._showView(this._view);
+    }
+
+    // ───────── Scene renderer ─────────
+
+    _setSceneNotice(title, buttonLabel, action) {
+        this._sceneNotice.title = title;
+        this._sceneNotice.button_label = buttonLabel ?? '';
+        this._sceneNoticeAction = action;
+    }
+
+    _confirmRendererInstall() {
+        const dialog = new Adw.AlertDialog({
+            heading: _('Install the scene renderer?'),
+            body: _('Downloads about 1 GB and builds for a few minutes. Nothing is installed system-wide.'),
+        });
+        dialog.add_response('cancel', _('Cancel'));
+        dialog.add_response('install', _('Install'));
+        dialog.set_response_appearance('install', Adw.ResponseAppearance.SUGGESTED);
+        dialog.connect('response', (_dialog, response) => {
+            if (response === 'install')
+                this._installRenderer();
+        });
+        dialog.present(this._window);
+    }
+
+    // Runs the setup script that ships with the extension; what it prints goes
+    // to a log that is offered when it fails.
+    _installRenderer() {
+        const bundled = GLib.build_filenamev([this._extensionPath, 'setup-scene-renderer.sh']);
+        const script = GLib.file_test(bundled, GLib.FileTest.IS_EXECUTABLE)
+            ? bundled : GLib.find_program_in_path('gnome-paper-engine-setup-scene');
+        const logDir = GLib.build_filenamev([GLib.get_user_cache_dir(), 'gnome-paper-engine']);
+        const log = GLib.build_filenamev([logDir, 'setup-scene-renderer.log']);
+        const fail = () => {
+            this._installingRenderer = false;
+            this._setSceneNotice(_('The scene renderer could not be installed'), _('Show log'),
+                () => Gio.AppInfo.launch_default_for_uri(Gio.File.new_for_path(log).get_uri(), null));
+        };
+
+        this._installingRenderer = true;
+        this._setSceneNotice(_('Installing the scene renderer'), null, null);
+        let subprocess;
+        try {
+            if (!script)
+                throw new Error('The setup script is not installed');
+            GLib.mkdir_with_parents(logDir, 0o755);
+            const launcher = new Gio.SubprocessLauncher({
+                flags: Gio.SubprocessFlags.STDERR_MERGE,
+            });
+            launcher.set_stdout_file_path(log);
+            subprocess = launcher.spawnv([script]);
+        } catch (e) {
+            console.error(e);
+            GLib.file_set_contents(log, `${e.message}\n`);
+            fail();
+            return;
+        }
+        subprocess.wait_async(null, () => {
+            if (!subprocess.get_successful()) {
+                fail();
+                return;
+            }
+            this._installingRenderer = false;
+            this._reloadLibrary();
+        });
     }
 
     _populateLibrary() {
@@ -1127,6 +1196,6 @@ export default class PaperEnginePreferences extends ExtensionPreferences {
         // Wide enough for four columns of wallpapers between the two side panes.
         window.set_default_size(1440, 900);
         window.set_search_enabled(false);
-        new Picker(window, settings);
+        new Picker(window, settings, this.path);
     }
 }

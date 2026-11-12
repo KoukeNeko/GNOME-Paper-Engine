@@ -80,6 +80,10 @@ You can also add your own folders of wallpaper projects under
 
 ### Scene wallpapers
 
+Scene wallpapers need a renderer that is built once per user. The picker
+offers to do it: press **Install** on the bar that appears above the
+wallpapers. The same can be done from a terminal:
+
 ```bash
 gnome-paper-engine-setup-scene   # installed from the .deb
 ./setup-scene-renderer.sh            # from the source folder

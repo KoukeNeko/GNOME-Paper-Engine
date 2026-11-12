@@ -113,8 +113,6 @@ msgstr "搜尋桌布"
 msgid "Refresh"
 msgstr "重新整理"
 
-msgid "Scene wallpapers need the scene renderer: run gnome-paper-engine-setup-scene in a terminal once (setup-scene-renderer.sh in a source checkout)."
-msgstr "場景桌布需要場景渲染器：請先在終端機執行一次 gnome-paper-engine-setup-scene（原始碼安裝則是 setup-scene-renderer.sh）。"
 
 msgid "Load more"
 msgstr "載入更多"
@@ -287,8 +285,6 @@ msgstr "「%s」是「%s」類型的桌布，目前不支援"
 msgid "Could not start the wallpaper renderer: %s"
 msgstr "無法啟動桌布渲染器：%s"
 
-msgid "Scene wallpapers need the scene renderer. Run gnome-paper-engine-setup-scene (setup-scene-renderer.sh in a source checkout) to install it."
-msgstr "場景桌布需要場景渲染器。請執行 gnome-paper-engine-setup-scene（原始碼安裝則是 setup-scene-renderer.sh）來安裝。"
 
 msgid "Scene wallpapers need Wallpaper Engine itself to be installed in Steam (for its assets folder)."
 msgstr "場景桌布需要先在 Steam 安裝 Wallpaper Engine 本體（會用到它的 assets 資料夾）。"
@@ -343,3 +339,30 @@ msgstr "Dock 後方顯示視窗"
 
 msgid "Windows behind the top bar"
 msgstr "頂端列後方顯示視窗"
+
+msgid "Scene wallpapers need the scene renderer"
+msgstr "場景桌布需要場景渲染器"
+
+msgid "Install"
+msgstr "安裝"
+
+msgid "Install the scene renderer?"
+msgstr "安裝場景渲染器？"
+
+msgid "Downloads about 1 GB and builds for a few minutes. Nothing is installed system-wide."
+msgstr "將下載約 1 GB 並建置數分鐘，不會安裝到系統目錄。"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Installing the scene renderer"
+msgstr "正在安裝場景渲染器"
+
+msgid "The scene renderer could not be installed"
+msgstr "無法安裝場景渲染器"
+
+msgid "Show log"
+msgstr "顯示記錄"
+
+msgid "Scene wallpapers need the scene renderer. Install it from the Paper Engine window."
+msgstr "場景桌布需要場景渲染器，請在 Paper Engine 視窗中安裝。"

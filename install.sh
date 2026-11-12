@@ -14,6 +14,8 @@ EXTENSION_DIR="$DATA_DIR/gnome-shell/extensions/$UUID"
 rm -rf "$EXTENSION_DIR"
 mkdir -p "$EXTENSION_DIR" "$DATA_DIR/applications" "$DATA_DIR/icons/hicolor/scalable/apps"
 cp -r "$SOURCE_DIR/extension/." "$EXTENSION_DIR"
+# The picker's install button runs the scene renderer setup from here.
+cp -r "$SOURCE_DIR/setup-scene-renderer.sh" "$SOURCE_DIR/patches" "$EXTENSION_DIR"
 glib-compile-schemas --strict "$EXTENSION_DIR/schemas"
 for catalogue in "$SOURCE_DIR"/po/*.po; do
     language="$(basename "$catalogue" .po)"

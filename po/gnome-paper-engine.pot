@@ -161,8 +161,6 @@ msgid "Refresh"
 msgstr ""
 
 #: extension/prefs.js:352
-msgid "Scene wallpapers need the scene renderer: run gnome-paper-engine-setup-scene in a terminal once (setup-scene-renderer.sh in a source checkout)."
-msgstr ""
 
 #: extension/prefs.js:380
 msgid "Load more"
@@ -443,8 +441,6 @@ msgid "Could not start the wallpaper renderer: %s"
 msgstr ""
 
 #: extension/extension.js:261
-msgid "Scene wallpapers need the scene renderer. Run gnome-paper-engine-setup-scene (setup-scene-renderer.sh in a source checkout) to install it."
-msgstr ""
 
 #: extension/extension.js:266
 msgid "Scene wallpapers need Wallpaper Engine itself to be installed in Steam (for its assets folder)."
@@ -464,4 +460,31 @@ msgid "Windows behind the Dock"
 msgstr ""
 
 msgid "Windows behind the top bar"
+msgstr ""
+
+msgid "Scene wallpapers need the scene renderer"
+msgstr ""
+
+msgid "Install"
+msgstr ""
+
+msgid "Install the scene renderer?"
+msgstr ""
+
+msgid "Downloads about 1 GB and builds for a few minutes. Nothing is installed system-wide."
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Installing the scene renderer"
+msgstr ""
+
+msgid "The scene renderer could not be installed"
+msgstr ""
+
+msgid "Show log"
+msgstr ""
+
+msgid "Scene wallpapers need the scene renderer. Install it from the Paper Engine window."
 msgstr ""

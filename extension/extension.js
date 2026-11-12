@@ -361,7 +361,7 @@ export default class PaperEngineExtension extends Extension {
     _spawnSceneRenderers(project, properties, monitors) {
         const binary = findSceneRenderer(this._settings.get_string('scene-renderer'));
         if (!binary) {
-            this._notify(_('Scene wallpapers need the scene renderer. Run gnome-paper-engine-setup-scene (setup-scene-renderer.sh in a source checkout) to install it.'));
+            this._notify(_('Scene wallpapers need the scene renderer. Install it from the Paper Engine window.'));
             return;
         }
         const assetsDir = findAssetsDir();
