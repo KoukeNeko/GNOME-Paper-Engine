@@ -19,6 +19,16 @@ const SORT_PARAMETERS = {
     top: 'browsesort=totaluniquesubscribers',
 };
 
+// Language prefix → the name Steam knows it by; anything else gets English.
+const STEAM_LANGUAGES = {zh_TW: 'tchinese', zh_HK: 'tchinese', zh: 'schinese', ja: 'japanese', ko: 'koreana'};
+
+/** The language to ask Steam for: that of the interface, which follows LANGUAGE. */
+function steamLanguage() {
+    const [locale] = GLib.get_language_names();
+    const prefix = Object.keys(STEAM_LANGUAGES).find(candidate => locale.startsWith(candidate));
+    return prefix ? STEAM_LANGUAGES[prefix] : 'english';
+}
+
 const TYPE_BY_TAG = {Scene: 'scene', Video: 'video', Web: 'web'};
 
 // Browsing shows dozens of previews at a time: fetch them side by side, and
@@ -130,7 +140,7 @@ export async function browse({sort, query = '', tag = null, page = 1}, cancellab
         'section=readytouseitems',
         SORT_PARAMETERS[sort],
         `p=${page}`,
-        'l=tchinese',
+        `l=${steamLanguage()}`,
         // Only all-ages wallpapers.
         `requiredtags%5B%5D=Everyone`,
     ];
@@ -142,8 +152,7 @@ export async function browse({sort, query = '', tag = null, page = 1}, cancellab
     return parseBrowsePage(new TextDecoder().decode(bytes.toArray()));
 }
 
-/** Downloads a preview image (optionally scaled down by Steam's CDN) as GLib.Bytes. */
-export function fetchPreview(previewUrl, size = null, cancellable = null) {
-    const url = size ? `${previewUrl}?imw=${size}&imh=${size}&ima=fit&impolicy=Letterbox` : previewUrl;
-    return fetchBytes(url, cancellable);
+/** Downloads a preview image, scaled down by Steam's CDN to fit `size`, as GLib.Bytes. */
+export function fetchPreview(previewUrl, size, cancellable = null) {
+    return fetchBytes(`${previewUrl}?imw=${size}&imh=${size}&ima=fit&impolicy=Letterbox`, cancellable);
 }
