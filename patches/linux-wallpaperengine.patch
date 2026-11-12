@@ -87,7 +87,7 @@ index 2150c6b..bf61825 100644
      MouseClickStatus m_rightClick = Released;
  };
 diff --git a/src/WallpaperEngine/Render/Objects/CImage.cpp b/src/WallpaperEngine/Render/Objects/CImage.cpp
-index 470e295..05100e9 100644
+index 470e295..a6994f1 100644
 --- a/src/WallpaperEngine/Render/Objects/CImage.cpp
 +++ b/src/WallpaperEngine/Render/Objects/CImage.cpp
 @@ -535,7 +535,8 @@ void CImage::updatePuppetPositionBuffer (const glm::vec2& size) {
@@ -124,7 +124,67 @@ index 470e295..05100e9 100644
  	}
  
  	pass->setDestination (drawTo);
-@@ -1111,7 +1122,20 @@ void CImage::updateScreenSpacePosition () {
+@@ -936,12 +947,35 @@ void CImage::render () {
+ 
+     auto cur = this->m_passes.begin ();
+ 
++    // a composition layer shows its children only inside its own bounds; children are drawn straight
++    // to the scene here, so that has to be enforced when they reach it
++    const CImage* clip = this->findCompositionAncestor ();
++
+     for (const auto end = this->m_passes.end (); cur != end; ++cur) {
+-	if (std::next (cur) == end) {
++	const bool last = std::next (cur) == end;
++	if (last) {
+ 	    glColorMask (true, true, true, false);
+ 	}
+ 
++	if (last && clip != nullptr) {
++	    const auto fbo = this->getScene ().getFBO ();
++	    const float scaleX = static_cast<float> (fbo->getRealWidth ()) / static_cast<float> (this->getScene ().getWidth ());
++	    const float scaleY = static_cast<float> (fbo->getRealHeight ()) / static_cast<float> (this->getScene ().getHeight ());
++	    const float left = std::min (clip->m_pos.x, clip->m_pos.z) + this->getScene ().getWidth () / 2.0f;
++	    const float bottom = std::min (clip->m_pos.y, clip->m_pos.w) + this->getScene ().getHeight () / 2.0f;
++	    glEnable (GL_SCISSOR_TEST);
++	    glScissor (
++		static_cast<GLint> (std::floor (left * scaleX)), static_cast<GLint> (std::floor (bottom * scaleY)),
++		static_cast<GLsizei> (std::ceil (std::abs (clip->m_pos.z - clip->m_pos.x) * scaleX)),
++		static_cast<GLsizei> (std::ceil (std::abs (clip->m_pos.w - clip->m_pos.y) * scaleY))
++	    );
++	}
++
+ 	(*cur)->render ();
++
++	if (last && clip != nullptr) {
++	    glDisable (GL_SCISSOR_TEST);
++	}
+     }
+ 
+ #if !NDEBUG
+@@ -949,6 +983,22 @@ void CImage::render () {
+ #endif /* DEBUG */
+ }
+ 
++const CImage* CImage::findCompositionAncestor () const {
++    const Object* current = &this->getImage ();
++    for (int guard = 0; guard < 32 && current->parent.has_value (); guard++) {
++	const auto* parentObject = this->getScene ().getObject (current->parent.value ());
++	if (parentObject == nullptr) {
++	    return nullptr;
++	}
++	current = &parentObject->getObject ();
++	const auto* parentImage = dynamic_cast<const CImage*> (parentObject);
++	if (parentImage != nullptr && parentImage->getImage ().model->filename == "models/util/composelayer.json") {
++	    return parentImage;
++	}
++    }
++    return nullptr;
++}
++
+ const float& CImage::getBrightness () const { return this->m_image.brightness->value->getFloat (); }
+ 
+ const float& CImage::getUserAlpha () const { return this->m_image.alpha->value->getFloat (); }
+@@ -1111,7 +1161,20 @@ void CImage::updateScreenSpacePosition () {
      if (this->getScene ().getScene ().camera.parallax.enabled
  	&& !this->getScene ().getContext ().getApp ().getContext ().settings.mouse.disableparallax) {
  	const double parallaxAmount = this->getScene ().getScene ().camera.parallax.amount->value->getFloat ();
@@ -146,7 +206,7 @@ index 470e295..05100e9 100644
  	const glm::vec2* displacement = this->getScene ().getParallaxDisplacement ();
  	const float referenceSize = static_cast<float> (this->getScene ().getWidth ());
  	float x = (depth.x + parallaxAmount) * displacement->x * referenceSize;
-@@ -1121,6 +1145,17 @@ void CImage::updateScreenSpacePosition () {
+@@ -1121,6 +1184,17 @@ void CImage::updateScreenSpacePosition () {
  
      this->m_modelViewProjectionScreen = mvp;
      this->m_modelViewProjectionScreenInverse = glm::inverse (mvp);
@@ -165,10 +225,20 @@ index 470e295..05100e9 100644
  	this->m_modelViewProjectionCopy = this->m_modelViewProjectionScreen;
  	this->m_modelViewProjectionCopyInverse = this->m_modelViewProjectionScreenInverse;
 diff --git a/src/WallpaperEngine/Render/Objects/CImage.h b/src/WallpaperEngine/Render/Objects/CImage.h
-index 07eeda2..cbf2a99 100644
+index 07eeda2..3f31118 100644
 --- a/src/WallpaperEngine/Render/Objects/CImage.h
 +++ b/src/WallpaperEngine/Render/Objects/CImage.h
-@@ -105,6 +105,8 @@ private:
+@@ -69,6 +69,9 @@ protected:
+ 
+     [[nodiscard]] ResolvedTransform resolveTransform (const WallpaperEngine::Data::Model::Object& object) const;
+ 
++    /** The nearest parent that is a composition layer, which clips this image to its bounds */
++    [[nodiscard]] const CImage* findCompositionAncestor () const;
++
+     /**
+      * Computes the object's own transform (origin/scale/angle) without walking the
+      * parent chain. Used as the per-node step of resolveTransform.
+@@ -105,6 +108,8 @@ private:
      std::vector<GLfloat> m_puppetRawPositions = {};
  
      glm::mat4 m_modelViewProjectionScreen = {};
