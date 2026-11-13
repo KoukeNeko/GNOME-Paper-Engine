@@ -35,6 +35,10 @@
       <default>'maximized'</default>
       <summary>Pause playback while every monitor is covered by a fullscreen (or maximized) window</summary>
     </key>
+    <key name="pause-while-sharing" type="b">
+      <default>false</default>
+      <summary>Pause playback while the screen is being shared or recorded</summary>
+    </key>
     <key name="show-on-lock-screen" type="b">
       <default>true</default>
       <summary>Keep the wallpaper playing behind the lock screen</summary>

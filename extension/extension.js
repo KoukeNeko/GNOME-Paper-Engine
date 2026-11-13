@@ -100,6 +100,19 @@ export default class PaperEngineExtension extends Extension {
 
         this._backgroundClones = new BackgroundClones(
             monitorIndex => this._wallpaperActor(monitorIndex), () => this._queuePauseCheck());
+        // Screen shares and recordings that are running, for pause-while-sharing.
+        this._screenShares = new Set();
+        connect(global.backend.get_remote_access_controller(), 'new-handle', (_controller, handle) => {
+            this._screenShares.add(handle);
+            handle.connect('stopped', () => {
+                this._screenShares.delete(handle);
+                // A share can outlive the extension being disabled.
+                if (this._settings)
+                    this._queuePauseCheck();
+            });
+            this._queuePauseCheck();
+        });
+
 
         this._applyBlurMyShellDefaults();
         this._scheduleRotation();
@@ -162,7 +175,7 @@ export default class PaperEngineExtension extends Extension {
             this._sendCommand(`volume ${this._settings.get_int('volume')}`);
         } else if (key === 'show-on-lock-screen') {
             this._onSessionModeChanged();
-        } else if (key === 'pause-mode' || key === 'paused') {
+        } else if (key === 'pause-mode' || key === 'paused' || key === 'pause-while-sharing') {
             this._queuePauseCheck();
         } else if (key === 'rotation-interval') {
             this._scheduleRotation();
@@ -595,6 +608,10 @@ export default class PaperEngineExtension extends Extension {
     // the wallpaper on its first frame.)
     _onSessionModeChanged() {
         this._queuePauseCheck();
+        // Sharing the screen loads the compositor and the GPU; a still
+        // wallpaper leaves them more room.
+        if (this._screenShares.size > 0 && this._settings.get_boolean('pause-while-sharing'))
+            return true;
         this._syncLockScreenClones();
     }
 

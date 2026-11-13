@@ -572,3 +572,6 @@ msgstr ""
 
 msgid "Could not sign out of Steam"
 msgstr ""
+
+msgid "Pause while the screen is shared"
+msgstr ""

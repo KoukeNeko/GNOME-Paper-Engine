@@ -1222,6 +1222,10 @@ class Picker {
         playback.add(createChoiceRow(settings, 'fit', _('Scaling'), FIT_LABELS));
         playback.add(createChoiceRow(settings, 'pause-mode', _('Pause automatically'), PAUSE_LABELS));
 
+        const sharingRow = new Adw.SwitchRow({title: _('Pause while the screen is shared')});
+        settings.bind('pause-while-sharing', sharingRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        playback.add(sharingRow);
+
         const lockScreenRow = new Adw.SwitchRow({
             title: _('Show on the lock screen'),
             subtitle: _('When off, playback pauses while the screen is locked'),

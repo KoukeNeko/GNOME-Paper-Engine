@@ -198,7 +198,9 @@ the picker opens the wallpaper's page in the Steam client, and it appears in
 the library once Steam has downloaded it.
 
 By default playback pauses while every monitor is covered by a maximized or
-fullscreen window. With several monitors, a wallpaper can be applied to all
+fullscreen window. It can also pause while the screen is being shared or
+recorded (*Playback and performance → Pause while the screen is shared*),
+which leaves the compositor and the GPU more room for the stream. With several monitors, a wallpaper can be applied to all
 of them or to one. Wallpapers added to the playlist can rotate on a timer
 (*Playback and performance → Playlist*).
 

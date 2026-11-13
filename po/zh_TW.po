@@ -450,3 +450,6 @@ msgstr "將移除已儲存的登入資訊，再次下載場景素材時需重新
 
 msgid "Could not sign out of Steam"
 msgstr "無法登出 Steam"
+
+msgid "Pause while the screen is shared"
+msgstr "分享螢幕時暫停"
