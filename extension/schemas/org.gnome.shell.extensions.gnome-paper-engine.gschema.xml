@@ -10,6 +10,18 @@
     <value nick="fullscreen" value="1"/>
     <value nick="maximized" value="2"/>
   </enum>
+  <!-- Weakest first: when several conditions hold, the strongest action wins. -->
+  <enum id="org.gnome.shell.extensions.gnome-paper-engine.PlaybackAction">
+    <value nick="keep" value="0"/>
+    <value nick="mute" value="1"/>
+    <value nick="pause" value="2"/>
+    <value nick="stop" value="3"/>
+  </enum>
+  <enum id="org.gnome.shell.extensions.gnome-paper-engine.RenderScale">
+    <value nick="100" value="100"/>
+    <value nick="75" value="75"/>
+    <value nick="50" value="50"/>
+  </enum>
   <schema id="org.gnome.shell.extensions.gnome-paper-engine"
           path="/org/gnome/shell/extensions/gnome-paper-engine/">
     <key name="wallpaper" type="s">
@@ -33,7 +45,40 @@
     </key>
     <key name="pause-mode" enum="org.gnome.shell.extensions.gnome-paper-engine.PauseMode">
       <default>'maximized'</default>
-      <summary>Pause playback while every monitor is covered by a fullscreen (or maximized) window</summary>
+      <summary>Replaced by when-maximized and when-fullscreen; a value set here is carried over to them once</summary>
+    </key>
+    <key name="when-focused" enum="org.gnome.shell.extensions.gnome-paper-engine.PlaybackAction">
+      <default>'keep'</default>
+      <summary>What playback does while another application has the focus</summary>
+    </key>
+    <key name="when-maximized" enum="org.gnome.shell.extensions.gnome-paper-engine.PlaybackAction">
+      <default>'pause'</default>
+      <summary>What playback does while every monitor is covered by a maximized or fullscreen window</summary>
+    </key>
+    <key name="when-fullscreen" enum="org.gnome.shell.extensions.gnome-paper-engine.PlaybackAction">
+      <default>'pause'</default>
+      <summary>What playback does while every monitor is covered by a fullscreen window</summary>
+    </key>
+    <key name="when-audio" enum="org.gnome.shell.extensions.gnome-paper-engine.PlaybackAction">
+      <default>'keep'</default>
+      <summary>What playback does while another application plays audio</summary>
+    </key>
+    <key name="when-on-battery" enum="org.gnome.shell.extensions.gnome-paper-engine.PlaybackAction">
+      <default>'keep'</default>
+      <summary>What playback does while the computer runs on battery power</summary>
+    </key>
+    <key name="fps" type="i">
+      <range min="10" max="240"/>
+      <default>30</default>
+      <summary>Frame rate limit of scene and web wallpapers</summary>
+    </key>
+    <key name="render-scale" enum="org.gnome.shell.extensions.gnome-paper-engine.RenderScale">
+      <default>'100'</default>
+      <summary>Resolution scene wallpapers are rendered at, in percent of their own</summary>
+    </key>
+    <key name="particles" type="b">
+      <default>true</default>
+      <summary>Draw the particle effects of scene wallpapers</summary>
     </key>
     <key name="pause-while-sharing" type="b">
       <default>false</default>

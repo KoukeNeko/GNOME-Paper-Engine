@@ -143,8 +143,9 @@ without root: its ~100 build dependencies are downloaded and unpacked there
 rather than installed, because installing them system-wide would swap out
 JACK libraries that Steam uses. It downloads roughly 1 GB and takes a few
 minutes. Delete the directory to remove it; the bar and its button come back
-when the renderer is missing. After a distribution upgrade, build it again
-from a terminal.
+when the renderer is missing, and the bar offers **Update** when a newer
+version of this project changes the patches the renderer is built with. After
+a distribution upgrade, build it again from a terminal.
 
 <details>
 <summary>From a terminal</summary>
@@ -197,10 +198,22 @@ interface and may break when Steam changes it. Subscribing happens in Steam:
 the picker opens the wallpaper's page in the Steam client, and it appears in
 the library once Steam has downloaded it.
 
-By default playback pauses while every monitor is covered by a maximized or
-fullscreen window. It can also pause while the screen is being shared or
-recorded (*Playback and performance → Pause while the screen is shared*),
-which leaves the compositor and the GPU more room for the stream. With several monitors, a wallpaper can be applied to all
+*Playback and performance → Playback rules* decide, as in Wallpaper Engine,
+what playback does while another application has the focus, while every
+monitor is covered by a maximized or a fullscreen window, while another
+application plays audio, and while on battery power: keep running, mute,
+pause, or stop, which ends the renderer and frees the memory it holds. When
+several apply, the strongest wins. By default playback pauses under maximized
+and fullscreen windows. Any application with an open sound stream counts as
+playing audio, a voice chat for the whole call, since the stream does not say
+whether it is silent. Playback can also pause while the screen is being shared
+or recorded (*Playback and performance → Pause while the screen is shared*),
+which leaves the compositor and the GPU more room for the stream.
+
+*Playback and performance → Quality* limits the frame rate of scene and web
+wallpapers (video plays at its own), and for scenes sets the resolution they
+are rendered at (100, 75 or 50%, which saves GPU time and memory) and whether
+their particles are drawn. With several monitors, a wallpaper can be applied to all
 of them or to one. Wallpapers added to the playlist can rotate on a timer
 (*Playback and performance → Playlist*).
 
@@ -265,8 +278,8 @@ flowchart TB
     windows --> still
 ```
 
-The extension also sends the pointer, pause and volume to the renderers over
-their standard input.
+The extension also sends the pointer, pause, mute and volume to the renderers
+over their standard input.
 
 - `extension/renderer.js` – GTK 3 + WebKitGTK process for video and web
   wallpapers, one window per monitor, controlled over stdin.

@@ -84,6 +84,8 @@ cmake --fresh -S "$SOURCE_DIR" -B "$SOURCE_DIR/build" -G Ninja \
 cmake --build "$SOURCE_DIR/build"
 rm -rf "$PREFIX/linux-wallpaperengine"
 cmake --install "$SOURCE_DIR/build"
+# The picker compares this with the patches it ships to tell when the renderer needs rebuilding.
+cat "$SCRIPT_DIR"/patches/*.patch | sha256sum | cut -d' ' -f1 > "$PREFIX/linux-wallpaperengine/patches.sha256"
 
 # The extension looks for this launcher; it points the binary at the private libraries.
 mkdir -p "$PREFIX/bin"

@@ -16,8 +16,8 @@ import System from 'system';
 import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import {
-    listProjects, loadProject, resolveProperties, findSceneRenderer, findAssetsDir, findWorkshopDirs, isSceneSupported,
-    format, blurMyShellSettings, BLUR_MY_SHELL_COMPONENTS,
+    listProjects, loadProject, resolveProperties, findSceneRenderer, isSceneRendererOutdated, findAssetsDir,
+    findWorkshopDirs, isSceneSupported, format, blurMyShellSettings, BLUR_MY_SHELL_COMPONENTS,
 } from './library.js';
 import {evaluateCondition} from './conditions.js';
 import {downloadSceneAssets, savedAccount, signOut} from './sceneAssets.js';
@@ -47,11 +47,16 @@ const TYPE_LABELS = {scene: N_('Scene'), video: N_('Video'), web: N_('Web')};
 const FIT_LABELS = {cover: N_('Fill (crop)'), contain: N_('Fit (letterbox)'), fill: N_('Stretch')};
 // Languages the picker can be switched to; the names are deliberately not translated.
 const LANGUAGE_LABELS = {'': N_('System default'), en: 'English', zh_TW: '繁體中文'};
-const PAUSE_LABELS = {
-    maximized: N_('When a window is maximized or fullscreen'),
-    fullscreen: N_('When a window is fullscreen'),
-    never: N_('Never'),
-};
+const ACTION_LABELS = {keep: N_('Keep running'), mute: N_('Mute'), pause: N_('Pause'), stop: N_('Stop (free memory)')};
+// [setting, title] of each playback rule, in the order Wallpaper Engine lists them.
+const PLAYBACK_RULES = [
+    ['when-focused', N_('Other app focused')],
+    ['when-maximized', N_('Window maximized')],
+    ['when-fullscreen', N_('Window fullscreen')],
+    ['when-audio', N_('Other app playing audio')],
+    ['when-on-battery', N_('On battery power')],
+];
+const RENDER_SCALE_LABELS = {100: '100%', 75: '75%', 50: '50%'};
 
 // [view id, icon, label]; library views filter what is installed, workshop
 // views query Steam.
@@ -521,6 +526,10 @@ class Picker {
                 this._sceneNotice.revealed = true;
                 this._setSceneNotice(_('Scene wallpapers need the scene assets'), _('Download'),
                     () => this._confirmAssetsDownload());
+            } else if (hasScenes && isSceneRendererOutdated(this._settings.get_string('scene-renderer'), this._setupScript())) {
+                this._sceneNotice.revealed = true;
+                this._setSceneNotice(_('The scene renderer needs updating'), _('Update'),
+                    () => this._confirmRendererInstall(true));
             } else {
                 this._sceneNotice.revealed = false;
             }
@@ -551,13 +560,14 @@ class Picker {
         this._sceneNoticeAction = action;
     }
 
-    _confirmRendererInstall() {
+    // `update` rebuilds a renderer that is already installed.
+    _confirmRendererInstall(update = false) {
         const dialog = new Adw.AlertDialog({
-            heading: _('Install the scene renderer?'),
+            heading: update ? _('Update the scene renderer?') : _('Install the scene renderer?'),
             body: _('Downloads about 1 GB and builds for a few minutes. Nothing is installed system-wide.'),
         });
         dialog.add_response('cancel', _('Cancel'));
-        dialog.add_response('install', _('Install'));
+        dialog.add_response('install', update ? _('Update') : _('Install'));
         dialog.set_response_appearance('install', Adw.ResponseAppearance.SUGGESTED);
         dialog.connect('response', (_dialog, response) => {
             if (response === 'install')
@@ -566,12 +576,22 @@ class Picker {
         dialog.present(this._window);
     }
 
-    // Runs the setup script that ships with the extension; what it prints goes
-    // to a log that is offered when it fails.
-    _installRenderer() {
+    // The setup script that ships with the extension: next to it from the
+    // source folder, behind a link in PATH from the package.
+    _setupScript() {
         const bundled = GLib.build_filenamev([this._extensionPath, 'setup-scene-renderer.sh']);
-        const script = GLib.file_test(bundled, GLib.FileTest.IS_EXECUTABLE)
-            ? bundled : GLib.find_program_in_path('gnome-paper-engine-setup-scene');
+        if (GLib.file_test(bundled, GLib.FileTest.IS_EXECUTABLE))
+            return bundled;
+        const link = GLib.find_program_in_path('gnome-paper-engine-setup-scene');
+        if (!link || !GLib.file_test(link, GLib.FileTest.IS_SYMLINK))
+            return link;
+        // Its patches are next to where the link points.
+        return GLib.canonicalize_filename(GLib.file_read_link(link), GLib.path_get_dirname(link));
+    }
+
+    // Runs the setup script; what it prints goes to a log that is offered when it fails.
+    _installRenderer() {
+        const script = this._setupScript();
         const logDir = GLib.build_filenamev([GLib.get_user_cache_dir(), 'gnome-paper-engine']);
         const log = GLib.build_filenamev([logDir, 'setup-scene-renderer.log']);
         const fail = () => {
@@ -1220,7 +1240,6 @@ class Picker {
         playback.add(volumeRow);
 
         playback.add(createChoiceRow(settings, 'fit', _('Scaling'), FIT_LABELS));
-        playback.add(createChoiceRow(settings, 'pause-mode', _('Pause automatically'), PAUSE_LABELS));
 
         const sharingRow = new Adw.SwitchRow({title: _('Pause while the screen is shared')});
         settings.bind('pause-while-sharing', sharingRow, 'active', Gio.SettingsBindFlags.DEFAULT);
@@ -1239,6 +1258,24 @@ class Picker {
         });
         settings.bind('system-background', systemBackgroundRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         playback.add(systemBackgroundRow);
+
+        const rules = new Adw.PreferencesGroup({title: _('Playback rules')});
+        page.add(rules);
+        for (const [key, title] of PLAYBACK_RULES)
+            rules.add(createChoiceRow(settings, key, _(title), ACTION_LABELS));
+
+        const quality = new Adw.PreferencesGroup({title: _('Quality')});
+        page.add(quality);
+        const fpsRow = new Adw.SpinRow({
+            title: _('Frame rate limit'),
+            adjustment: new Gtk.Adjustment({lower: 10, upper: 240, step_increment: 5}),
+        });
+        settings.bind('fps', fpsRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+        quality.add(fpsRow);
+        quality.add(createChoiceRow(settings, 'render-scale', _('Scene resolution'), RENDER_SCALE_LABELS));
+        const particlesRow = new Adw.SwitchRow({title: _('Scene particles')});
+        settings.bind('particles', particlesRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        quality.add(particlesRow);
 
         const rotation = new Adw.PreferencesGroup({
             title: _('Playlist'),

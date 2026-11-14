@@ -1,3 +1,56 @@
+diff --git a/src/WallpaperEngine/Application/ApplicationContext.cpp b/src/WallpaperEngine/Application/ApplicationContext.cpp
+index e86f750..ce5fb58 100644
+--- a/src/WallpaperEngine/Application/ApplicationContext.cpp
++++ b/src/WallpaperEngine/Application/ApplicationContext.cpp
+@@ -493,6 +493,11 @@ void ApplicationContext::loadSettingsFromArgv () {
+ 	.default_value (30)
+ 	.store_into (this->settings.render.maximumFPS);
+ 
++    performanceGroup.add_argument ("--render-scale")
++	.help ("Renders scenes at this percentage (25-100) of their resolution, to use less GPU time and memory")
++	.default_value (100)
++	.store_into (this->settings.render.renderScale);
++
+     performanceGroup.add_argument ("--hwdec")
+ 	.help ("Selects the libmpv hardware decoder (auto, nvdec-copy, or no). Default: auto")
+ 	.choices ("auto", "nvdec-copy", "no")
+@@ -668,6 +673,7 @@ void ApplicationContext::loadSettingsFromArgv () {
+ 	}
+ 
+ 	this->settings.audio.volume = std::max (0, std::min (this->settings.audio.volume, 128));
++	this->settings.render.renderScale = std::max (25, std::min (this->settings.render.renderScale, 100));
+ 	this->settings.screenshot.delay
+ 	    = std::max<uint32_t> (0, std::min<uint32_t> (this->settings.screenshot.delay, 5));
+ 
+diff --git a/src/WallpaperEngine/Application/ApplicationContext.h b/src/WallpaperEngine/Application/ApplicationContext.h
+index 6a73fe9..7ef96b6 100644
+--- a/src/WallpaperEngine/Application/ApplicationContext.h
++++ b/src/WallpaperEngine/Application/ApplicationContext.h
+@@ -113,6 +113,8 @@ public:
+ 	    WINDOW_MODE mode;
+ 	    /** Maximum FPS */
+ 	    int maximumFPS;
++	    /** Percentage (25-100) of their own resolution that scenes are rendered at */
++	    int renderScale;
+ 	    /** Hardware decoder passed to libmpv */
+ 	    std::string hwdec;
+ 	    /** Indicates if pausing should happen when something goes fullscreen */
+diff --git a/src/WallpaperEngine/Application/WallpaperApplication.cpp b/src/WallpaperEngine/Application/WallpaperApplication.cpp
+index c9107af..29900ea 100644
+--- a/src/WallpaperEngine/Application/WallpaperApplication.cpp
++++ b/src/WallpaperEngine/Application/WallpaperApplication.cpp
+@@ -581,8 +581,9 @@ void WallpaperApplication::takeScreenshot (const std::filesystem::path& filename
+ 	glFinish ();
+ 
+ 	// make room for storing the pixel of this viewport
+-	const int readWidth = wallpaper->getWidth ();
+-	const int readHeight = wallpaper->getHeight ();
++	// the FBO's own size, which is smaller than the wallpaper's when rendering at a lower scale
++	const int readWidth = static_cast<int> (wallpaper->getFBO ()->getRealWidth ());
++	const int readHeight = static_cast<int> (wallpaper->getFBO ()->getRealHeight ());
+ 	const auto bufferSize = readWidth * readHeight * 3;
+ 	auto* buffer = new uint8_t[bufferSize];
+ 
 diff --git a/src/WallpaperEngine/Audio/AudioStream.h b/src/WallpaperEngine/Audio/AudioStream.h
 index 7b2bb7e..24aa8b8 100644
 --- a/src/WallpaperEngine/Audio/AudioStream.h
@@ -109,7 +162,7 @@ index 51f92f3..e5a424a 100644
      );
  }
 diff --git a/src/WallpaperEngine/Input/Drivers/GLFWMouseInput.cpp b/src/WallpaperEngine/Input/Drivers/GLFWMouseInput.cpp
-index 8ddce13..1061b7b 100644
+index 8ddce13..a5a8b12 100644
 --- a/src/WallpaperEngine/Input/Drivers/GLFWMouseInput.cpp
 +++ b/src/WallpaperEngine/Input/Drivers/GLFWMouseInput.cpp
 @@ -1,5 +1,9 @@
@@ -122,7 +175,7 @@ index 8ddce13..1061b7b 100644
  
  #include "WallpaperEngine/Render/Drivers/GLFWOpenGLDriver.h"
  
-@@ -19,12 +23,43 @@ void GLFWMouseInput::update () {
+@@ -19,12 +23,49 @@ void GLFWMouseInput::update () {
      this->m_leftClick = leftClickState == GLFW_RELEASE ? MouseClickStatus::Released : MouseClickStatus::Clicked;
      this->m_rightClick = rightClickState == GLFW_RELEASE ? MouseClickStatus::Released : MouseClickStatus::Clicked;
  
@@ -136,6 +189,7 @@ index 8ddce13..1061b7b 100644
 +    // A host that keeps this window below everything else (so it never gets pointer events) can feed
 +    // the pointer through stdin instead, one "x y [button]" line per update: the position as fractions
 +    // of the window measured from its top-left corner, and 1 while the left button is held on it.
++    // Lines it doesn't understand are skipped.
 +    pollfd stdinPoll = { .fd = STDIN_FILENO, .events = POLLIN, .revents = 0 };
 +    while (!this->m_stdinClosed && poll (&stdinPoll, 1, 0) > 0) {
 +	char buffer[256];
@@ -150,7 +204,12 @@ index 8ddce13..1061b7b 100644
 +	double x = 0.0;
 +	double y = 0.0;
 +	int button = 0;
-+	if (sscanf (this->m_stdinBuffer.c_str (), "%lf %lf %d", &x, &y, &button) >= 2) {
++	int muted = 0;
++	// "mute 1" silences the background until "mute 0", without restarting it.
++	if (sscanf (this->m_stdinBuffer.c_str (), "mute %d", &muted) == 1) {
++	    auto& context = this->m_driver.getApp ().getContext ();
++	    context.state.audio.volume = muted != 0 ? 0 : context.settings.audio.volume;
++	} else if (sscanf (this->m_stdinBuffer.c_str (), "%lf %lf %d", &x, &y, &button) >= 2) {
 +	    this->m_hostPosition = { x, y };
 +	    this->m_hostLeftClick = button != 0;
 +	    this->m_hasHostPosition = true;
@@ -196,11 +255,68 @@ index 2150c6b..bf61825 100644
      MouseClickStatus m_leftClick = Released;
      MouseClickStatus m_rightClick = Released;
  };
+diff --git a/src/WallpaperEngine/Render/CWallpaper.cpp b/src/WallpaperEngine/Render/CWallpaper.cpp
+index d0f7eab..51f6e4f 100644
+--- a/src/WallpaperEngine/Render/CWallpaper.cpp
++++ b/src/WallpaperEngine/Render/CWallpaper.cpp
+@@ -309,9 +309,9 @@ void CWallpaper::render (
+ 
+ void CWallpaper::setPause (bool newState) { }
+ 
+-void CWallpaper::setupFramebuffers () {
+-    const uint32_t width = this->getWidth ();
+-    const uint32_t height = this->getHeight ();
++void CWallpaper::setupFramebuffers (const float scale) {
++    const uint32_t width = this->getWidth () * scale;
++    const uint32_t height = this->getHeight () * scale;
+     const uint32_t clamp = this->m_state.getClampingMode ();
+ 
+     // create framebuffer for the scene
+diff --git a/src/WallpaperEngine/Render/CWallpaper.h b/src/WallpaperEngine/Render/CWallpaper.h
+index 87b2b07..e74ae77 100644
+--- a/src/WallpaperEngine/Render/CWallpaper.h
++++ b/src/WallpaperEngine/Render/CWallpaper.h
+@@ -157,7 +157,7 @@ protected:
+     /**
+      * Setups OpenGL's framebuffers for ping-pong and scene rendering
+      */
+-    void setupFramebuffers ();
++    void setupFramebuffers (float scale = 1.0f);
+ 
+     const Wallpaper& m_wallpaperData;
+ 
+diff --git a/src/WallpaperEngine/Render/Drivers/GLFWOpenGLDriver.cpp b/src/WallpaperEngine/Render/Drivers/GLFWOpenGLDriver.cpp
+index 01063d9..3d3544e 100644
+--- a/src/WallpaperEngine/Render/Drivers/GLFWOpenGLDriver.cpp
++++ b/src/WallpaperEngine/Render/Drivers/GLFWOpenGLDriver.cpp
+@@ -27,7 +27,6 @@ GLFWOpenGLDriver::GLFWOpenGLDriver (const char* windowTitle, ApplicationContext&
+     }
+ 
+     // set some window hints (opengl version to be used)
+-    glfwWindowHint (GLFW_SAMPLES, 4);
+     glfwWindowHint (GLFW_CONTEXT_VERSION_MAJOR, 3);
+     glfwWindowHint (GLFW_CONTEXT_VERSION_MINOR, 3);
+     glfwWindowHint (GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 diff --git a/src/WallpaperEngine/Render/Objects/CImage.cpp b/src/WallpaperEngine/Render/Objects/CImage.cpp
-index 470e295..51cd4ba 100644
+index 470e295..2cf2969 100644
 --- a/src/WallpaperEngine/Render/Objects/CImage.cpp
 +++ b/src/WallpaperEngine/Render/Objects/CImage.cpp
-@@ -535,7 +535,8 @@ void CImage::updatePuppetPositionBuffer (const glm::vec2& size) {
+@@ -268,11 +268,12 @@ CImage::CImage (Wallpapers::CScene& scene, const Image& image) :
+     nameA << "_rt_imageLayerComposite_" << this->getImage ().id << "_a";
+     nameB << "_rt_imageLayerComposite_" << this->getImage ().id << "_b";
+ 
++    const glm::vec2 renderSize = size * scene.getRenderScale ();
+     this->m_currentMainFBO = this->m_mainFBO = scene.create (
+-	nameA.str (), TextureFormat_ARGB8888, this->m_texture->getFlags (), 1, { size.x, size.y }, { size.x, size.y }
++	nameA.str (), TextureFormat_ARGB8888, this->m_texture->getFlags (), 1, renderSize, renderSize
+     );
+     this->m_currentSubFBO = this->m_subFBO = scene.create (
+-	nameB.str (), TextureFormat_ARGB8888, this->m_texture->getFlags (), 1, { size.x, size.y }, { size.x, size.y }
++	nameB.str (), TextureFormat_ARGB8888, this->m_texture->getFlags (), 1, renderSize, renderSize
+     );
+ 
+     // build a list of vertices, these might need some change later (or maybe invert the camera)
+@@ -535,7 +536,8 @@ void CImage::updatePuppetPositionBuffer (const glm::vec2& size) {
      for (size_t index = 0; index + 2 < this->m_puppetRawPositions.size (); index += 3) {
  	positions.push_back (size.x / 2.0f + this->m_puppetRawPositions[index]);
  	positions.push_back (size.y / 2.0f - this->m_puppetRawPositions[index + 1]);
@@ -210,7 +326,7 @@ index 470e295..51cd4ba 100644
      }
  
      if (this->m_puppetSpacePosition == GL_NONE) {
-@@ -575,6 +576,9 @@ void CImage::setupPuppetGeometryCallback (Effects::CPass* pass) const {
+@@ -575,6 +577,9 @@ void CImage::setupPuppetGeometryCallback (Effects::CPass* pass) const {
  		    previousClearColor[0], previousClearColor[1], previousClearColor[2], previousClearColor[3]
  		);
  	    }
@@ -220,7 +336,16 @@ index 470e295..51cd4ba 100644
  	    glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, this->m_puppetIndices);
  	    glDrawElements (GL_TRIANGLES, this->m_puppetIndexCount, GL_UNSIGNED_SHORT, nullptr);
  	},
-@@ -827,6 +831,13 @@ void CImage::setupPasses () {
+@@ -650,7 +655,7 @@ void CImage::setup () {
+ 
+ 	    // create all the fbos for this effect
+ 	    for (const auto& fbo : cur->effect->fbos) {
+-		fboProvider->create (*fbo, this->m_texture->getFlags (), this->getSize ());
++		fboProvider->create (*fbo, this->m_texture->getFlags (), this->getSize () * this->getScene ().getRenderScale ());
+ 	    }
+ 
+ 	    // TODO: MAKE USE OF ZIP OPERATOR IN BOOST? WAY OVERKILL JUST FOR THIS...
+@@ -827,6 +832,13 @@ void CImage::setupPasses () {
  	    drawTo = this->getScene ().getFBO ();
  	    projection = &this->m_modelViewProjectionScreen;
  	    inverseProjection = &this->m_modelViewProjectionScreenInverse;
@@ -234,7 +359,7 @@ index 470e295..51cd4ba 100644
  	}
  
  	pass->setDestination (drawTo);
-@@ -916,6 +927,12 @@ void CImage::render () {
+@@ -916,6 +928,12 @@ void CImage::render () {
  	return;
      }
  
@@ -247,7 +372,7 @@ index 470e295..51cd4ba 100644
      glColorMask (true, true, true, true);
  
      // Always update screen transform (handles rotation + parallax dynamically)
-@@ -936,12 +953,35 @@ void CImage::render () {
+@@ -936,12 +954,35 @@ void CImage::render () {
  
      auto cur = this->m_passes.begin ();
  
@@ -284,7 +409,7 @@ index 470e295..51cd4ba 100644
      }
  
  #if !NDEBUG
-@@ -949,6 +989,27 @@ void CImage::render () {
+@@ -949,6 +990,27 @@ void CImage::render () {
  #endif /* DEBUG */
  }
  
@@ -312,7 +437,7 @@ index 470e295..51cd4ba 100644
  const float& CImage::getBrightness () const { return this->m_image.brightness->value->getFloat (); }
  
  const float& CImage::getUserAlpha () const { return this->m_image.alpha->value->getFloat (); }
-@@ -1111,7 +1172,20 @@ void CImage::updateScreenSpacePosition () {
+@@ -1111,7 +1173,20 @@ void CImage::updateScreenSpacePosition () {
      if (this->getScene ().getScene ().camera.parallax.enabled
  	&& !this->getScene ().getContext ().getApp ().getContext ().settings.mouse.disableparallax) {
  	const double parallaxAmount = this->getScene ().getScene ().camera.parallax.amount->value->getFloat ();
@@ -334,7 +459,7 @@ index 470e295..51cd4ba 100644
  	const glm::vec2* displacement = this->getScene ().getParallaxDisplacement ();
  	const float referenceSize = static_cast<float> (this->getScene ().getWidth ());
  	float x = (depth.x + parallaxAmount) * displacement->x * referenceSize;
-@@ -1121,6 +1195,17 @@ void CImage::updateScreenSpacePosition () {
+@@ -1121,6 +1196,17 @@ void CImage::updateScreenSpacePosition () {
  
      this->m_modelViewProjectionScreen = mvp;
      this->m_modelViewProjectionScreenInverse = glm::inverse (mvp);
@@ -899,10 +1024,54 @@ index e93c293..fdc52fc 100644
      this->addUniform ("g_EffectTextureProjectionMatrixInverse", glm::mat4 (1.0));
      this->addUniform ("g_TexelSize", glm::vec2 (1.0 / scene.getWidth (), 1.0 / scene.getHeight ()));
 diff --git a/src/WallpaperEngine/Render/Wallpapers/CScene.cpp b/src/WallpaperEngine/Render/Wallpapers/CScene.cpp
-index ab63d78..6c7ca53 100644
+index ab63d78..0b3bdd9 100644
 --- a/src/WallpaperEngine/Render/Wallpapers/CScene.cpp
 +++ b/src/WallpaperEngine/Render/Wallpapers/CScene.cpp
-@@ -311,13 +311,17 @@ void CScene::renderFrame (const glm::ivec4& viewport) {
+@@ -74,14 +74,17 @@ CScene::CScene (
+     this->m_camera->setOrthogonalProjection (width, height);
+ 
+     // setup framebuffers here as they're required for the scene setup
+-    this->setupFramebuffers ();
++    this->setupFramebuffers (this->getRenderScale ());
+ 
+     const uint32_t sceneWidth = this->m_camera->getWidth ();
+     const uint32_t sceneHeight = this->m_camera->getHeight ();
++    // Framebuffers are smaller at a lower render scale; positions stay in scene units.
++    const uint32_t renderWidth = sceneWidth * this->getRenderScale ();
++    const uint32_t renderHeight = sceneHeight * this->getRenderScale ();
+ 
+     this->_rt_shadowAtlas = this->create (
+-	"_rt_shadowAtlas", TextureFormat_ARGB8888, TextureFlags_ClampUVs, 1.0, { sceneWidth, sceneHeight },
+-	{ sceneWidth, sceneHeight }
++	"_rt_shadowAtlas", TextureFormat_ARGB8888, TextureFlags_ClampUVs, 1.0, { renderWidth, renderHeight },
++	{ renderWidth, renderHeight }
+     );
+     this->alias ("_alias_lightCookie", "_rt_shadowAtlas");
+ 
+@@ -102,16 +105,16 @@ CScene::CScene (
+ 
+     // create extra framebuffers for the bloom effect
+     this->_rt_4FrameBuffer = this->create (
+-	"_rt_4FrameBuffer", TextureFormat_ARGB8888, TextureFlags_ClampUVs, 1.0, { sceneWidth / 4, sceneHeight / 4 },
+-	{ sceneWidth / 4, sceneHeight / 4 }
++	"_rt_4FrameBuffer", TextureFormat_ARGB8888, TextureFlags_ClampUVs, 1.0, { renderWidth / 4, renderHeight / 4 },
++	{ renderWidth / 4, renderHeight / 4 }
+     );
+     this->_rt_8FrameBuffer = this->create (
+-	"_rt_8FrameBuffer", TextureFormat_ARGB8888, TextureFlags_ClampUVs, 1.0, { sceneWidth / 8, sceneHeight / 8 },
+-	{ sceneWidth / 8, sceneHeight / 8 }
++	"_rt_8FrameBuffer", TextureFormat_ARGB8888, TextureFlags_ClampUVs, 1.0, { renderWidth / 8, renderHeight / 8 },
++	{ renderWidth / 8, renderHeight / 8 }
+     );
+     this->_rt_Bloom = this->create (
+-	"_rt_Bloom", TextureFormat_ARGB8888, TextureFlags_ClampUVs, 1.0, { sceneWidth / 8, sceneHeight / 8 },
+-	{ sceneWidth / 8, sceneHeight / 8 }
++	"_rt_Bloom", TextureFormat_ARGB8888, TextureFlags_ClampUVs, 1.0, { renderWidth / 8, renderHeight / 8 },
++	{ renderWidth / 8, renderHeight / 8 }
+     );
+ 
+     //
+@@ -311,13 +314,17 @@ void CScene::renderFrame (const glm::ivec4& viewport) {
  	&& !this->getContext ().getApp ().getContext ().settings.mouse.disableparallax) {
  	const float influence = this->getScene ().camera.parallax.mouseInfluence->value->getFloat ();
  	const float amount = this->getScene ().camera.parallax.amount->value->getFloat ();
@@ -923,28 +1092,34 @@ index ab63d78..6c7ca53 100644
      }
  
      // run a tick in the javascript logic
-@@ -423,6 +427,8 @@ const glm::vec2* CScene::getMousePositionNormalized () const { return &this->m_m
+@@ -423,6 +430,12 @@ const glm::vec2* CScene::getMousePositionNormalized () const { return &this->m_m
  
  const glm::vec2* CScene::getParallaxDisplacement () const { return &this->m_parallaxDisplacement; }
  
 +const glm::vec2* CScene::getParallaxPosition () const { return &this->m_parallaxPosition; }
 +
++float CScene::getRenderScale () const {
++    return static_cast<float> (this->getContext ().getApp ().getContext ().settings.render.renderScale) / 100.0f;
++}
++
  const std::vector<CObject*>& CScene::getObjectsByRenderOrder () const { return this->m_objectsByRenderOrder; }
  
  const CObject* CScene::getObject (int id) const {
 diff --git a/src/WallpaperEngine/Render/Wallpapers/CScene.h b/src/WallpaperEngine/Render/Wallpapers/CScene.h
-index 9e12f3f..128bed8 100644
+index 9e12f3f..bf22076 100644
 --- a/src/WallpaperEngine/Render/Wallpapers/CScene.h
 +++ b/src/WallpaperEngine/Render/Wallpapers/CScene.h
-@@ -41,6 +41,7 @@ public:
+@@ -41,6 +41,9 @@ public:
      const glm::vec2* getMousePositionLast () const;
      const glm::vec2* getMousePositionNormalized () const;
      const glm::vec2* getParallaxDisplacement () const;
 +    const glm::vec2* getParallaxPosition () const;
++    /** The fraction of their own size that the scene's framebuffers are allocated at */
++    [[nodiscard]] float getRenderScale () const;
  
      [[nodiscard]] const std::vector<CObject*>& getObjectsByRenderOrder () const;
      [[nodiscard]] const CObject* getObject (int id) const;
-@@ -67,6 +68,8 @@ private:
+@@ -67,6 +70,8 @@ private:
      glm::vec2 m_mousePositionLast = {};
      glm::vec2 m_mousePositionNormalized = {};
      glm::vec2 m_parallaxDisplacement = {};

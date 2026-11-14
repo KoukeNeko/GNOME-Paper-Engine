@@ -1,17 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Tests for the parsers that read content from outside: option conditions
-// from wallpapers, the Workshop browse page and SteamCMD's output. Run with `gjs -m tests/run.js`.
+// from wallpapers, the Workshop browse page and SteamCMD's output; and for
+// telling when the scene renderer needs rebuilding. Run with `gjs -m tests/run.js`.
 
 import GLib from 'gi://GLib';
 import System from 'system';
 
-// Keep the Workshop module's HTTP cache out of the user's own.
+// Keep the Workshop module's HTTP cache and the scene renderer files out of the user's own.
 GLib.setenv('XDG_CACHE_HOME', GLib.dir_make_tmp('gnome-paper-engine-tests-XXXXXX'), true);
+GLib.setenv('XDG_DATA_HOME', GLib.dir_make_tmp('gnome-paper-engine-tests-XXXXXX'), true);
 
 const {evaluateCondition} = await import('../extension/conditions.js');
 const {parseBrowsePage} = await import('../extension/workshop.js');
 const {readSteamCmdLine, readSavedAccounts} = await import('../extension/sceneAssets.js');
+const {isSceneRendererOutdated} = await import('../extension/library.js');
 
 let failures = 0;
 function check(name, actual, expected) {
@@ -100,6 +103,23 @@ check('saved account', readSavedAccounts(`"InstallConfigStore"
 	} } }
 }`), ['some_user']);
 check('no saved account', readSavedAccounts('"InstallConfigStore" { "Software" { } }'), []);
+
+// The setup script records the checksum of the patches it built with; the
+// picker must hash the patches the same way to tell they are unchanged.
+const setupScript = GLib.build_filenamev([GLib.get_current_dir(), 'setup-scene-renderer.sh']);
+const prefix = GLib.build_filenamev([GLib.get_user_data_dir(), 'gnome-paper-engine']);
+GLib.mkdir_with_parents(`${prefix}/bin`, 0o755);
+GLib.mkdir_with_parents(`${prefix}/linux-wallpaperengine`, 0o755);
+GLib.file_set_contents(`${prefix}/bin/linux-wallpaperengine`, '#!/bin/sh\n');
+GLib.chmod(`${prefix}/bin/linux-wallpaperengine`, 0o755);
+check('renderer without recorded patches is outdated', isSceneRendererOutdated('', setupScript), true);
+GLib.spawn_sync(GLib.get_current_dir(),
+    ['sh', '-c', `cat patches/*.patch | sha256sum | cut -d' ' -f1 > ${GLib.shell_quote(`${prefix}/linux-wallpaperengine/patches.sha256`)}`],
+    null, GLib.SpawnFlags.SEARCH_PATH, null);
+check('renderer built with the current patches is up to date', isSceneRendererOutdated('', setupScript), false);
+GLib.file_set_contents(`${prefix}/linux-wallpaperengine/patches.sha256`, '0000\n');
+check('renderer built with other patches is outdated', isSceneRendererOutdated('', setupScript), true);
+check('renderer built elsewhere is never outdated', isSceneRendererOutdated('/bin/true', setupScript), false);
 
 if (failures > 0)
     System.exit(1);

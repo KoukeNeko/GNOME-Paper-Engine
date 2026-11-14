@@ -44,18 +44,6 @@ msgstr ""
 msgid "System default"
 msgstr ""
 
-#: extension/prefs.js:42
-msgid "When a window is maximized or fullscreen"
-msgstr ""
-
-#: extension/prefs.js:43
-msgid "When a window is fullscreen"
-msgstr ""
-
-#: extension/prefs.js:44
-msgid "Never"
-msgstr ""
-
 #: extension/prefs.js:50
 msgid "All"
 msgstr ""
@@ -365,10 +353,6 @@ msgstr ""
 msgid "Scaling"
 msgstr ""
 
-#: extension/prefs.js:987
-msgid "Pause automatically"
-msgstr ""
-
 #: extension/prefs.js:990
 msgid "Show on the lock screen"
 msgstr ""
@@ -574,4 +558,49 @@ msgid "Could not sign out of Steam"
 msgstr ""
 
 msgid "Pause while the screen is shared"
+msgstr ""
+
+msgid "Keep running"
+msgstr ""
+
+msgid "Stop (free memory)"
+msgstr ""
+
+msgid "Other app focused"
+msgstr ""
+
+msgid "Window maximized"
+msgstr ""
+
+msgid "Window fullscreen"
+msgstr ""
+
+msgid "Other app playing audio"
+msgstr ""
+
+msgid "On battery power"
+msgstr ""
+
+msgid "Playback rules"
+msgstr ""
+
+msgid "Quality"
+msgstr ""
+
+msgid "Frame rate limit"
+msgstr ""
+
+msgid "Scene resolution"
+msgstr ""
+
+msgid "Scene particles"
+msgstr ""
+
+msgid "The scene renderer needs updating"
+msgstr ""
+
+msgid "Update"
+msgstr ""
+
+msgid "Update the scene renderer?"
 msgstr ""

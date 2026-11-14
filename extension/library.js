@@ -19,6 +19,9 @@ const STEAM_ROOTS = [
 // Where setup-scene-renderer.sh installs linux-wallpaperengine.
 const LOCAL_SCENE_RENDERER = GLib.build_filenamev(
     [GLib.get_user_data_dir(), 'gnome-paper-engine', 'bin', 'linux-wallpaperengine']);
+// The checksum of the patches that renderer was built with, written by the setup script.
+const LOCAL_SCENE_RENDERER_PATCHES = GLib.build_filenamev(
+    [GLib.get_user_data_dir(), 'gnome-paper-engine', 'linux-wallpaperengine', 'patches.sha256']);
 // Where the picker installs the scene assets it downloads with SteamCMD.
 export const LOCAL_ASSETS_DIR = GLib.build_filenamev([GLib.get_user_data_dir(), 'gnome-paper-engine', 'assets']);
 
@@ -220,4 +223,35 @@ export function findSceneRenderer(configuredPath) {
     if (GLib.file_test(LOCAL_SCENE_RENDERER, GLib.FileTest.IS_EXECUTABLE))
         return LOCAL_SCENE_RENDERER;
     return GLib.find_program_in_path('linux-wallpaperengine');
+}
+
+/**
+ * Whether the scene renderer built by the setup script at `setupScript` was
+ * built with other patches than the ones next to that script, so it lacks
+ * what the extension now asks of it. Renderers built some other way are
+ * never reported.
+ */
+export function isSceneRendererOutdated(configuredPath, setupScript) {
+    if (!setupScript || findSceneRenderer(configuredPath) !== LOCAL_SCENE_RENDERER)
+        return false;
+    // Hashed the way the setup script does: all patches in name order, as one stream.
+    const patchesDir = Gio.File.new_for_path(GLib.path_get_dirname(setupScript)).get_child('patches');
+    const names = [];
+    const enumerator = patchesDir.enumerate_children('standard::name', Gio.FileQueryInfoFlags.NONE, null);
+    for (let info; (info = enumerator.next_file(null));) {
+        if (info.get_name().endsWith('.patch'))
+            names.push(info.get_name());
+    }
+    const checksum = new GLib.Checksum(GLib.ChecksumType.SHA256);
+    for (const name of names.sort())
+        checksum.update(patchesDir.get_child(name).load_contents(null)[1]);
+    let built = '';
+    try {
+        built = new TextDecoder().decode(GLib.file_get_contents(LOCAL_SCENE_RENDERER_PATCHES)[1]).trim();
+    } catch (e) {
+        // Missing when built before the setup script recorded its patches.
+        if (!e.matches(GLib.FileError, GLib.FileError.NOENT))
+            throw e;
+    }
+    return built !== checksum.get_string();
 }

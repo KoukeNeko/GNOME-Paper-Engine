@@ -12,6 +12,7 @@ import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {getMixerControl} from 'resource:///org/gnome/shell/ui/status/volume.js';
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {
@@ -22,6 +23,8 @@ import {BackgroundClones} from './backgroundClones.js';
 
 // Must match TITLE_PREFIX in renderer.js.
 const RENDERER_TITLE_PREFIX = 'gnome-paper-engine-renderer-';
+// Must match the window title set in prefs.js.
+const PICKER_TITLE = 'Paper Engine';
 
 const RELAUNCH_DELAY_MS = 2000;
 // A volume being stepped up or down restarts a scene once, not at every step.
@@ -43,7 +46,19 @@ const BACKGROUND_KEYS = ['picture-uri', 'picture-uri-dark'];
 const STILL_NAME = 'still.png';
 
 // Settings that only take effect by restarting the renderer.
-const RELAUNCH_KEYS = ['wallpaper', 'monitor-wallpapers', 'fit', 'scene-renderer', 'user-properties'];
+const RELAUNCH_KEYS = [
+    'wallpaper', 'monitor-wallpapers', 'fit', 'scene-renderer', 'user-properties', 'fps', 'render-scale', 'particles',
+];
+// Settings that decide whether the wallpaper plays.
+const PLAYBACK_KEYS = [
+    'paused', 'pause-while-sharing', 'when-focused', 'when-maximized', 'when-fullscreen', 'when-audio', 'when-on-battery',
+];
+// The nicks of the PlaybackAction enum, weakest first: when several
+// conditions hold, the strongest of their actions is taken.
+const PLAYBACK_ACTIONS = ['keep', 'mute', 'pause', 'stop'];
+// What the sound streams of the wallpaper's renderers are called: the
+// built-in renderer's PROGRAM_NAME, and the scene renderer's binary.
+const OWN_STREAM_NAMES = ['gnome-paper-engine-renderer', 'linux-wallpaperengine'];
 
 const SCENE_SCALING = {cover: 'fill', contain: 'fit', fill: 'stretch'};
 
@@ -58,6 +73,13 @@ const SIGCONT = 18;
 export default class PaperEngineExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
+        // A single pause-mode setting came before the playback rules.
+        const pauseMode = this._settings.get_user_value('pause-mode')?.unpack();
+        if (pauseMode) {
+            this._settings.set_string('when-maximized', pauseMode === 'maximized' ? 'pause' : 'keep');
+            this._settings.set_string('when-fullscreen', pauseMode === 'never' ? 'keep' : 'pause');
+            this._settings.reset('pause-mode');
+        }
         // {subprocess, pid, stdin, builtin, monitorIndex, startTime}. Only the
         // built-in renderer understands commands; the scene renderer reads
         // nothing but pointer positions from its stdin.
@@ -72,6 +94,10 @@ export default class PaperEngineExtension extends Extension {
         this._repeats = new Map();
         this._failures = 0;
         this._paused = false;
+        // Muted by a playback rule, on top of the user's own setting.
+        this._muted = false;
+        // Ended by a playback rule, to be started again when it no longer applies.
+        this._stopped = false;
         this._relaunchId = 0;
         this._pauseCheckId = 0;
         this._lockScreenId = 0;
@@ -90,7 +116,10 @@ export default class PaperEngineExtension extends Extension {
         connect(global.display, 'window-created', (_display, window) => this._adoptWindow(window));
         this._signals.push([global.window_manager, global.window_manager.connect_after(
             'map', (_wm, actor) => this._placeWindow(actor.meta_window))]);
-        connect(global.display, 'notify::focus-window', () => this._passOnFocus());
+        connect(global.display, 'notify::focus-window', () => {
+            this._passOnFocus();
+            this._queuePauseCheck();
+        });
 
         for (const signal of ['size-changed', 'minimize', 'unminimize', 'map', 'destroy', 'switch-workspace'])
             connect(global.window_manager, signal, () => this._queuePauseCheck());
@@ -113,6 +142,26 @@ export default class PaperEngineExtension extends Extension {
             this._queuePauseCheck();
         });
 
+        // The shell's own mixer, which knows every application's sound streams.
+        this._mixer = getMixerControl();
+        for (const signal of ['stream-added', 'stream-removed', 'stream-changed'])
+            connect(this._mixer, signal, () => this._queuePauseCheck());
+
+        this._upower = null;
+        this._upowerCancellable = new Gio.Cancellable();
+        Gio.DBusProxy.new_for_bus(Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE, null,
+            'org.freedesktop.UPower', '/org/freedesktop/UPower', 'org.freedesktop.UPower',
+            this._upowerCancellable, (_source, result) => {
+                try {
+                    this._upower = Gio.DBusProxy.new_for_bus_finish(result);
+                } catch (e) {
+                    if (!e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                        console.warn(`${this.uuid}: power source unknown, ignoring battery power: ${e.message}`);
+                    return;
+                }
+                connect(this._upower, 'g-properties-changed', () => this._queuePauseCheck());
+                this._queuePauseCheck();
+            });
 
         this._applyBlurMyShellDefaults();
         this._scheduleRotation();
@@ -163,6 +212,10 @@ export default class PaperEngineExtension extends Extension {
         this._lockScreenClones.clear();
         this._backgroundClones.destroy();
         this._backgroundClones = null;
+        this._upowerCancellable.cancel();
+        this._upowerCancellable = null;
+        this._upower = null;
+        this._mixer = null;
         this._stop();
         this._settings = null;
     }
@@ -170,12 +223,12 @@ export default class PaperEngineExtension extends Extension {
     _onSettingChanged(key) {
         const commandable = this._renderers.every(renderer => renderer.builtin);
         if (key === 'muted' && commandable) {
-            this._sendCommand(`mute ${this._settings.get_boolean('muted') ? 1 : 0}`);
+            this._sendMute();
         } else if (key === 'volume' && commandable) {
             this._sendCommand(`volume ${this._settings.get_int('volume')}`);
         } else if (key === 'show-on-lock-screen') {
             this._onSessionModeChanged();
-        } else if (key === 'pause-mode' || key === 'paused' || key === 'pause-while-sharing') {
+        } else if (PLAYBACK_KEYS.includes(key)) {
             this._queuePauseCheck();
         } else if (key === 'rotation-interval') {
             this._scheduleRotation();
@@ -206,8 +259,8 @@ export default class PaperEngineExtension extends Extension {
         if (minutes === 0)
             return;
         this._rotationId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, minutes * 60, () => {
-            // Nobody sees the wallpaper while it is paused; wait for the next round.
-            if (!this._paused)
+            // Nobody sees the wallpaper while it is paused or stopped; wait for the next round.
+            if (!this._paused && !this._stopped)
                 this._showNextInPlaylist();
             return GLib.SOURCE_CONTINUE;
         });
@@ -228,6 +281,7 @@ export default class PaperEngineExtension extends Extension {
 
     _launch() {
         this._stop();
+        this._stopped = false;
         if (this._relaunchId) {
             GLib.source_remove(this._relaunchId);
             this._relaunchId = 0;
@@ -385,6 +439,7 @@ export default class PaperEngineExtension extends Extension {
             '--type', project.type,
             '--file', project.file,
             '--fit', this._settings.get_string('fit'),
+            '--fps', `${this._settings.get_int('fps')}`,
             '--volume', `${this._settings.get_int('volume')}`,
             '--monitors', monitors.map(monitor => monitor.index).join(','),
             // Wallpaper Engine hands pages their properties as {name: {value}}.
@@ -416,6 +471,9 @@ export default class PaperEngineExtension extends Extension {
                 // Window sizes are in logical pixels, like the monitor geometry.
                 '--window', `0x0x${monitor.width}x${monitor.height}`,
                 '--scaling', SCENE_SCALING[this._settings.get_string('fit')],
+                '--fps', `${this._settings.get_int('fps')}`,
+                // Joined with = so that a renderer built before the option ignores it whole.
+                `--render-scale=${this._settings.get_string('render-scale')}`,
                 '--volume', `${this._settings.get_int('volume')}`,
                 // Pausing is driven by this extension instead.
                 '--no-fullscreen-pause',
@@ -425,6 +483,8 @@ export default class PaperEngineExtension extends Extension {
             ];
             if (this._settings.get_boolean('muted'))
                 argv.push('--silent');
+            if (!this._settings.get_boolean('particles'))
+                argv.push('--disable-particles');
             for (const [name, value] of Object.entries(properties))
                 argv.push('--set-property', `${name}=${value}`);
             argv.push(project.dir);
@@ -438,6 +498,8 @@ export default class PaperEngineExtension extends Extension {
             subprocess,
             pid: Number(subprocess.get_identifier()),
             stdin: subprocess.get_stdin_pipe(),
+            // Lines waiting for the write under way to finish.
+            queue: [],
             builtin,
             monitorIndex,
             startTime: GLib.get_monotonic_time(),
@@ -476,6 +538,7 @@ export default class PaperEngineExtension extends Extension {
         const renderers = this._renderers;
         this._renderers = [];
         this._paused = false;
+        this._muted = false;
         // SIGKILL also ends a renderer that is currently SIGSTOPped.
         for (const {subprocess} of renderers)
             subprocess.force_exit();
@@ -584,22 +647,72 @@ export default class PaperEngineExtension extends Extension {
             return;
         this._pauseCheckId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PAUSE_CHECK_DELAY_MS, () => {
             this._pauseCheckId = 0;
-            this._setPaused(this._shouldPause());
+            this._applyPlayback();
             return GLib.SOURCE_REMOVE;
         });
     }
 
-    _shouldPause() {
+    _applyPlayback() {
+        const action = this._playbackAction();
+        if (action === 'stop') {
+            // Ending the renderers frees the memory they hold.
+            if (this._renderers.length > 0 && this._mayRepeat('stopping and starting')) {
+                this._stopped = true;
+                this._stop();
+            }
+            return;
+        }
+        if (this._stopped) {
+            // A stopped wallpaper stands still already.
+            if (action !== 'pause' && this._mayRepeat('stopping and starting'))
+                this._launch();
+            return;
+        }
+        this._setPaused(action === 'pause');
+        this._setMuted(action === 'mute');
+    }
+
+    // One of PLAYBACK_ACTIONS: the strongest action of the conditions that hold now.
+    _playbackAction() {
         if (this._settings.get_boolean('paused'))
-            return true;
+            return 'pause';
         // Behind the lock screen the windows of the session don't cover anything.
         if (Main.sessionMode.isLocked)
-            return !this._settings.get_boolean('show-on-lock-screen');
+            return this._settings.get_boolean('show-on-lock-screen') ? 'keep' : 'pause';
+        const actions = [];
+        // Sharing the screen loads the compositor and the GPU; a still
+        // wallpaper leaves them more room.
+        if (this._screenShares.size > 0 && this._settings.get_boolean('pause-while-sharing'))
+            actions.push('pause');
+        if (this._upower?.get_cached_property('OnBattery')?.unpack())
+            actions.push(this._settings.get_string('when-on-battery'));
+        if (this._isOtherAudioPlaying())
+            actions.push(this._settings.get_string('when-audio'));
         // The overview and the app grid show the wallpaper on their
         // workspaces, around or instead of the windows that cover it.
-        if (Main.overview.visible || this._backgroundClones.isShown())
-            return false;
-        return this._isDesktopCovered();
+        if (!Main.overview.visible && !this._backgroundClones.isShown()) {
+            if (this._isOtherAppFocused())
+                actions.push(this._settings.get_string('when-focused'));
+            if (this._isDesktopCovered(window => window.fullscreen))
+                actions.push(this._settings.get_string('when-fullscreen'));
+            if (this._isDesktopCovered(window => window.fullscreen || window.is_maximized()))
+                actions.push(this._settings.get_string('when-maximized'));
+        }
+        return PLAYBACK_ACTIONS[Math.max(0, ...actions.map(action => PLAYBACK_ACTIONS.indexOf(action)))];
+    }
+
+    // The desktop itself (the wallpaper and the icons) and the picker don't count.
+    _isOtherAppFocused() {
+        const window = global.display.focus_window;
+        return window !== null && window.window_type !== Meta.WindowType.DESKTOP && window.title !== PICKER_TITLE;
+    }
+
+    // PulseAudio doesn't tell whether a stream is silent, so an application
+    // counts as playing for as long as it keeps a stream open: a voice chat
+    // for the whole call.
+    _isOtherAudioPlaying() {
+        return this._mixer.get_sink_inputs().some(stream =>
+            !stream.is_event_stream && !stream.is_muted && !OWN_STREAM_NAMES.includes(stream.name));
     }
 
     // The lock screen hides every window, so the wallpaper is shown there as
@@ -608,10 +721,6 @@ export default class PaperEngineExtension extends Extension {
     // the wallpaper on its first frame.)
     _onSessionModeChanged() {
         this._queuePauseCheck();
-        // Sharing the screen loads the compositor and the GPU; a still
-        // wallpaper leaves them more room.
-        if (this._screenShares.size > 0 && this._settings.get_boolean('pause-while-sharing'))
-            return true;
         this._syncLockScreenClones();
     }
 
@@ -654,11 +763,8 @@ export default class PaperEngineExtension extends Extension {
         this._lockScreenId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, LOCK_SCREEN_CHECK_MS, ensureClones);
     }
 
-    // True when, on every monitor, a fullscreen (or maximized) window hides the wallpaper.
-    _isDesktopCovered() {
-        const mode = this._settings.get_string('pause-mode');
-        if (mode === 'never')
-            return false;
+    // True when, on every monitor, a window for which `covers` holds hides the wallpaper.
+    _isDesktopCovered(covers) {
         const workspace = global.workspace_manager.get_active_workspace();
         const coveringWindows = global.get_window_actors()
             .map(actor => actor.meta_window)
@@ -666,7 +772,7 @@ export default class PaperEngineExtension extends Extension {
                 window.window_type === Meta.WindowType.NORMAL &&
                 !window.minimized &&
                 window.located_on_workspace(workspace) &&
-                (window.fullscreen || (mode === 'maximized' && window.is_maximized())));
+                covers(window));
         return Main.layoutManager.monitors.every(
             monitor => coveringWindows.some(window => window.get_monitor() === monitor.index));
     }
@@ -682,6 +788,21 @@ export default class PaperEngineExtension extends Extension {
         }
     }
 
+    _setMuted(muted) {
+        if (muted === this._muted || this._renderers.length === 0)
+            return;
+        this._muted = muted;
+        this._sendMute();
+    }
+
+    // Both renderers understand this line; one that runs muted by the user's
+    // setting already gets no sound to unmute.
+    _sendMute() {
+        const muted = this._muted || this._settings.get_boolean('muted');
+        for (const renderer of this._renderers)
+            this._write(renderer, `mute ${muted ? 1 : 0}`);
+    }
+
     _sendCommand(command) {
         for (const renderer of this._renderers) {
             if (renderer.builtin)
@@ -689,16 +810,29 @@ export default class PaperEngineExtension extends Extension {
         }
     }
 
-    // Never blocks: a renderer that stopped reading must not stall the compositor.
+    // Never blocks: a renderer that stopped reading must not stall the
+    // compositor. A stream takes one write at a time, so a line written while
+    // another is under way follows it.
     _write(renderer, line) {
-        renderer.stdin.write_bytes_async(
-            new TextEncoder().encode(`${line}\n`), GLib.PRIORITY_DEFAULT, null, (stream, result) => {
-                try {
-                    stream.write_bytes_finish(result);
-                } catch (e) {
-                    // The renderer went away; its exit handler deals with that.
-                }
-            });
+        renderer.queue.push(line);
+        if (renderer.queue.length > 1)
+            return;
+        const writeNext = () => {
+            renderer.stdin.write_bytes_async(
+                new TextEncoder().encode(`${renderer.queue[0]}\n`), GLib.PRIORITY_DEFAULT, null, (stream, result) => {
+                    try {
+                        stream.write_bytes_finish(result);
+                    } catch (e) {
+                        // The renderer went away; its exit handler deals with that.
+                        renderer.queue.length = 0;
+                        return;
+                    }
+                    renderer.queue.shift();
+                    if (renderer.queue.length > 0)
+                        writeNext();
+                });
+        };
+        writeNext();
     }
 
     // Wallpaper windows sit below everything and never get pointer events, so

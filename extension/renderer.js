@@ -18,6 +18,8 @@ import WebKit from 'gi://WebKit2?version=4.1';
 
 // Must match RENDERER_TITLE_PREFIX in extension.js.
 const TITLE_PREFIX = 'gnome-paper-engine-renderer-';
+// The name of this program's sound streams; must match OWN_STREAM_NAMES in extension.js.
+const PROGRAM_NAME = 'gnome-paper-engine-renderer';
 
 const FIT_TO_OBJECT_FIT = {cover: 'cover', contain: 'contain', fill: 'fill'};
 
@@ -55,7 +57,7 @@ window.wallpaperRequestRandomFileForProperty = () => {};
 
 function parseArgs(argv) {
     const options = {
-        type: '', file: '', fit: 'cover', muted: false, volume: 100,
+        type: '', file: '', fit: 'cover', fps: 30, muted: false, volume: 100,
         monitors: '0', properties: '{}',
     };
     for (let i = 0; i < argv.length; i++) {
@@ -70,8 +72,9 @@ function parseArgs(argv) {
     // Indices of the monitors to open a window for, e.g. "0,2".
     options.monitors = options.monitors.split(',').map(Number);
     options.volume = Number(options.volume);
+    options.fps = Number(options.fps);
     if (!['video', 'web'].includes(options.type) || !options.file)
-        throw new Error('Usage: renderer.js --type video|web --file PATH [--fit MODE] [--muted] [--volume N] [--monitors I,J,…] [--properties JSON]');
+        throw new Error('Usage: renderer.js --type video|web --file PATH [--fit MODE] [--fps N] [--muted] [--volume N] [--monitors I,J,…] [--properties JSON]');
     return options;
 }
 
@@ -188,13 +191,13 @@ class Renderer {
     }
 
     _onLoaded(view) {
-        const {type, volume, properties} = this._options;
+        const {type, volume, fps, properties} = this._options;
         if (type === 'video') {
             this._runJs(view, `document.querySelector('video').volume = ${volume / 100};`);
         } else {
             // The properties argument is JSON, which is also a valid JS literal.
             this._runJs(view, `
-                window.wallpaperPropertyListener?.applyGeneralProperties?.({fps: 60});
+                window.wallpaperPropertyListener?.applyGeneralProperties?.({fps: ${fps}});
                 window.wallpaperPropertyListener?.applyUserProperties?.(${properties});
             `);
         }
@@ -328,6 +331,7 @@ class Renderer {
     }
 }
 
+GLib.set_prgname(PROGRAM_NAME);
 Gtk.init(null);
 const options = parseArgs(ARGV);
 // Without its filter a web wallpaper is not shown at all: a failure here ends the process.

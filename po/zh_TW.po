@@ -29,15 +29,6 @@ msgstr "完整顯示（留邊）"
 msgid "Stretch"
 msgstr "延展"
 
-msgid "When a window is maximized or fullscreen"
-msgstr "有視窗最大化或全螢幕時"
-
-msgid "When a window is fullscreen"
-msgstr "有視窗全螢幕時"
-
-msgid "Never"
-msgstr "永不"
-
 msgid "All"
 msgstr "全部"
 
@@ -252,9 +243,6 @@ msgstr "音量"
 msgid "Scaling"
 msgstr "縮放方式"
 
-msgid "Pause automatically"
-msgstr "自動暫停"
-
 msgid "Show on the lock screen"
 msgstr "鎖定畫面也顯示桌布"
 
@@ -453,3 +441,48 @@ msgstr "無法登出 Steam"
 
 msgid "Pause while the screen is shared"
 msgstr "分享螢幕時暫停"
+
+msgid "Keep running"
+msgstr "繼續播放"
+
+msgid "Stop (free memory)"
+msgstr "停止（釋放記憶體）"
+
+msgid "Other app focused"
+msgstr "其他應用程式使用中"
+
+msgid "Window maximized"
+msgstr "視窗最大化"
+
+msgid "Window fullscreen"
+msgstr "視窗全螢幕"
+
+msgid "Other app playing audio"
+msgstr "其他應用程式播放音訊"
+
+msgid "On battery power"
+msgstr "使用電池"
+
+msgid "Playback rules"
+msgstr "播放規則"
+
+msgid "Quality"
+msgstr "畫質"
+
+msgid "Frame rate limit"
+msgstr "影格率上限"
+
+msgid "Scene resolution"
+msgstr "場景解析度"
+
+msgid "Scene particles"
+msgstr "場景粒子效果"
+
+msgid "The scene renderer needs updating"
+msgstr "場景渲染器需要更新"
+
+msgid "Update"
+msgstr "更新"
+
+msgid "Update the scene renderer?"
+msgstr "更新場景渲染器？"
