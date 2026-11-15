@@ -314,19 +314,16 @@ sudo apt remove gnome-paper-engine
 A source-folder install:
 
 ```bash
-gnome-extensions disable gnome-paper-engine@koukeneko.github.io
-rm -rf ~/.local/share/gnome-shell/extensions/gnome-paper-engine@koukeneko.github.io \
-       ~/.local/share/applications/gnome-paper-engine.desktop \
-       ~/.local/share/icons/hicolor/scalable/apps/gnome-paper-engine.svg
+./uninstall.sh
 ```
 
 Either way the scene renderer, and any downloaded scene assets and SteamCMD
-with its saved Steam sign-in, stay in your home folder until you delete them.
-The still image used as the desktop background is kept there too, so turn
-that option off (or pick another background) first:
+with its saved Steam sign-in, stay in your home folder. To remove them as
+well, which also resets the desktop background if it is the wallpaper's
+still image:
 
 ```bash
-rm -rf ~/.local/share/gnome-paper-engine ~/.cache/gnome-paper-engine
+./uninstall.sh --all
 ```
 
 ## Licence
