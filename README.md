@@ -45,6 +45,10 @@ own Steam library; nothing is bundled here.
 </p>
 
 <p align="center">
+  <img src="docs/settings.jpg" width="85%" alt="The playback and performance settings: playback rules, frame rate limit, scene resolution and particles, and the graphics card">
+</p>
+
+<p align="center">
   <img src="docs/workspaces.jpg" width="85%" alt="The overview with windows on several workspaces, each showing the wallpaper">
 </p>
 
