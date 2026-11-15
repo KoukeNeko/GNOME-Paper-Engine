@@ -290,13 +290,18 @@ over their standard input.
 
 - `extension/renderer.js` – GTK 3 + WebKitGTK process for video and web
   wallpapers, one window per monitor, controlled over stdin.
-- `extension/library.js` – finds Steam libraries and reads `project.json`.
+- `extension/library.js` – finds Steam libraries, reads `project.json`, and
+  lists the graphics cards through switcheroo-control.
 - `extension/prefs.js` – the picker and settings window.
 - `extension/workshop.js` – reads the Steam Workshop browse page.
+- `extension/sceneAssets.js` – downloads the scene assets with SteamCMD.
 - `extension/conditions.js` – evaluates when a wallpaper option is shown.
 - `extension/backgroundClones.js` – the wallpaper in the overview, its
   thumbnails and wherever else a copy of the system background is drawn.
 - `extension/roundedClip.js` – the rounded clip of the wallpaper in the overview.
+- `install.sh`, `uninstall.sh` – the source-folder install and its removal;
+  `build-deb.sh` builds the package.
+- `setup-scene-renderer.sh`, `patches/` – builds the patched scene renderer.
 - `tests/run.js` – tests for the parsers that read outside content
   (`gjs -m tests/run.js`).
 - `po/` – translations; `zh_TW.po` is the only one so far.
