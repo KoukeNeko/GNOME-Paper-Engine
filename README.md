@@ -172,7 +172,8 @@ kept, in `~/.local/share/gnome-paper-engine/assets`. Steam checks that the
 account owns Wallpaper Engine. SteamCMD is Valve's own download, kept in
 `~/.local/share/gnome-paper-engine/steamcmd` with its own sign-in, separate
 from the Steam client's; it is a 32-bit program, so it needs the i386
-libraries that Steam also uses.
+libraries that Steam also uses. The settings show the account it stays signed
+in as and can sign it out, which keeps the downloaded assets.
 
 Scenes that use a 3D perspective camera (a few of the samples bundled with
 Wallpaper Engine, e.g. *Neon Sunset*) are not supported by
@@ -213,8 +214,14 @@ which leaves the compositor and the GPU more room for the stream.
 *Playback and performance → Quality* limits the frame rate of scene and web
 wallpapers (video plays at its own), and for scenes sets the resolution they
 are rendered at (100, 75 or 50%, which saves GPU time and memory) and whether
-their particles are drawn. With several monitors, a wallpaper can be applied to all
-of them or to one. Wallpapers added to the playlist can rotate on a timer
+their particles are drawn. On a computer with more than one graphics card it
+also chooses the card the wallpaper is rendered on; a card that does not drive
+the display may be unable to show it (an integrated card beside an NVIDIA card
+that drives the monitor, for one), and the setting then goes back to the
+system default with a notice.
+
+With several monitors, a wallpaper can be applied to all of them or to one.
+Wallpapers added to the playlist can rotate on a timer
 (*Playback and performance → Playlist*).
 
 A still of the wallpaper is set as the system's desktop background, so that
