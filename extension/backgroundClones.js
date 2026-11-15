@@ -159,7 +159,6 @@ export class BackgroundClones {
         const left = (workArea.x - monitor.x) * scaleX;
         const top = (workArea.y - monitor.y) * scaleY;
         effect.setClip(
-            width, height,
             left, top, left + workArea.width * scaleX, top + workArea.height * scaleY,
             backgroundActor.content.rounded_clip_radius * scaleX);
     }
