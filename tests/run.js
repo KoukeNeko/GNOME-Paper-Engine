@@ -121,6 +121,14 @@ GLib.file_set_contents(`${prefix}/linux-wallpaperengine/patches.sha256`, '0000\n
 check('renderer built with other patches is outdated', isSceneRendererOutdated('', setupScript), true);
 check('renderer built elsewhere is never outdated', isSceneRendererOutdated('/bin/true', setupScript), false);
 
+// Rendering on a chosen GPU needs the matching EGL vendor file on top of what the system lists.
+const {gpuEnvironment} = await import('../extension/library.js');
+check('intel gpu environment', gpuEnvironment(['DRI_PRIME', 'pci-0000_00_02_0'], () => true),
+    {DRI_PRIME: 'pci-0000_00_02_0', __EGL_VENDOR_LIBRARY_FILENAMES: '/usr/share/glvnd/egl_vendor.d/50_mesa.json'});
+check('nvidia gpu environment', gpuEnvironment(['__NV_PRIME_RENDER_OFFLOAD', '1'], () => true),
+    {__NV_PRIME_RENDER_OFFLOAD: '1', __EGL_VENDOR_LIBRARY_FILENAMES: '/usr/share/glvnd/egl_vendor.d/10_nvidia.json'});
+check('gpu environment without vendor files', gpuEnvironment(['DRI_PRIME', '1'], () => false), {DRI_PRIME: '1'});
+
 if (failures > 0)
     System.exit(1);
 print('All tests passed');

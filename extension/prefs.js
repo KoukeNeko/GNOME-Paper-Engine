@@ -18,6 +18,7 @@ import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Ex
 import {
     listProjects, loadProject, resolveProperties, findSceneRenderer, isSceneRendererOutdated, findAssetsDir,
     findWorkshopDirs, isSceneSupported, format, blurMyShellSettings, BLUR_MY_SHELL_COMPONENTS,
+    listGpus,
 } from './library.js';
 import {evaluateCondition} from './conditions.js';
 import {downloadSceneAssets, savedAccount, signOut} from './sceneAssets.js';
@@ -1273,6 +1274,32 @@ class Picker {
         settings.bind('fps', fpsRow, 'value', Gio.SettingsBindFlags.DEFAULT);
         quality.add(fpsRow);
         quality.add(createChoiceRow(settings, 'render-scale', _('Scene resolution'), RENDER_SCALE_LABELS));
+        // Offered where there is a choice; the names are the system's own.
+        listGpus().then(gpus => {
+            if (gpus.length < 2)
+                return;
+            const names = ['', ...gpus.map(gpu => gpu.name)];
+            const gpuRow = new Adw.ComboRow({
+                title: _('Graphics card'),
+                model: Gtk.StringList.new([_('System default'), ...names.slice(1)]),
+                selected: Math.max(0, names.indexOf(settings.get_string('gpu'))),
+            });
+            gpuRow.connect('notify::selected', () => settings.set_string('gpu', names[gpuRow.selected]));
+            // The extension goes back to the default when the chosen card shows nothing.
+            this._settingsIds.push(settings.connect('changed::gpu', () => {
+                const name = settings.get_string('gpu');
+                if (name === names[gpuRow.selected])
+                    return;
+                gpuRow.selected = Math.max(0, names.indexOf(name));
+                if (!name) {
+                    this._toastOverlay.add_toast(new Adw.Toast({
+                        title: _('The wallpaper did not appear on the chosen graphics card; using the system default.'),
+                    }));
+                }
+            }));
+            quality.add(gpuRow);
+        }).catch(e => console.warn(`Cannot list the GPUs: ${e.message}`));
+
         const particlesRow = new Adw.SwitchRow({title: _('Scene particles')});
         settings.bind('particles', particlesRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         quality.add(particlesRow);

@@ -67,6 +67,10 @@
       <default>'keep'</default>
       <summary>What playback does while the computer runs on battery power</summary>
     </key>
+    <key name="gpu" type="s">
+      <default>''</default>
+      <summary>Name of the GPU wallpapers are rendered on, as switcheroo-control reports it; empty for the default</summary>
+    </key>
     <key name="fps" type="i">
       <range min="10" max="240"/>
       <default>30</default>

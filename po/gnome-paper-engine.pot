@@ -604,3 +604,9 @@ msgstr ""
 
 msgid "Update the scene renderer?"
 msgstr ""
+
+msgid "Graphics card"
+msgstr ""
+
+msgid "The wallpaper did not appear on the chosen graphics card; using the system default."
+msgstr ""

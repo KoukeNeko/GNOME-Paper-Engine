@@ -17,8 +17,7 @@ import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/ex
 
 import {
     loadProject, resolveProperties, findSceneRenderer, findAssetsDir, format, blurMyShellSettings,
-    BLUR_MY_SHELL_COMPONENTS,
-} from './library.js';
+    BLUR_MY_SHELL_COMPONENTS, listGpus} from './library.js';
 import {BackgroundClones} from './backgroundClones.js';
 
 // Must match TITLE_PREFIX in renderer.js.
@@ -41,13 +40,16 @@ const LOCK_SCREEN_CHECK_MS = 500;
 const LOCK_SCREEN_BRIGHTNESS = -0.2;
 // How long a wallpaper gets to load before a still of it is taken.
 const STILL_DELAY_MS = 5000;
+// How long a renderer on a chosen GPU gets to show a window. A GPU whose
+// buffers the compositor cannot import leaves the renderer running without one.
+const GPU_WINDOW_TIMEOUT_MS = 15000;
 const BACKGROUND_SCHEMA = 'org.gnome.desktop.background';
 const BACKGROUND_KEYS = ['picture-uri', 'picture-uri-dark'];
 const STILL_NAME = 'still.png';
 
 // Settings that only take effect by restarting the renderer.
 const RELAUNCH_KEYS = [
-    'wallpaper', 'monitor-wallpapers', 'fit', 'scene-renderer', 'user-properties', 'fps', 'render-scale', 'particles',
+    'wallpaper', 'monitor-wallpapers', 'fit', 'scene-renderer', 'user-properties', 'fps', 'render-scale', 'particles', 'gpu',
 ];
 // Settings that decide whether the wallpaper plays.
 const PLAYBACK_KEYS = [
@@ -90,6 +92,18 @@ export default class PaperEngineExtension extends Extension {
         this._clicking = false;
         // Meta.Window → {monitorIndex, signalIds}
         this._adoptedWindows = new Map();
+        // [{name, environment}] once switcheroo-control has answered.
+        this._gpus = null;
+        listGpus().catch(e => {
+            console.warn(`${this.uuid}: cannot list the GPUs: ${e.message}`);
+            return [];
+        }).then(gpus => {
+            if (!this._settings)
+                return;
+            this._gpus = gpus;
+            if (this._settings.get_string('gpu'))
+                this._launch();
+        });
         // What the extension keeps redoing → {since, count} within the current second.
         this._repeats = new Map();
         this._failures = 0;
@@ -280,6 +294,9 @@ export default class PaperEngineExtension extends Extension {
     }
 
     _launch() {
+        // A chosen GPU is only known once the list has arrived, which then launches.
+        if (this._gpus === null && this._settings.get_string('gpu'))
+            return;
         this._stop();
         this._stopped = false;
         if (this._relaunchId) {
@@ -297,6 +314,16 @@ export default class PaperEngineExtension extends Extension {
 
         this._queuePauseCheck();
         this._scheduleStill();
+        if (this._renderers.length > 0 && this._settings.get_string('gpu')) {
+            this._gpuCheckId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, GPU_WINDOW_TIMEOUT_MS, () => {
+                this._gpuCheckId = 0;
+                if (this._adoptedWindows.size === 0 && !this._paused) {
+                    this._notify(_('The wallpaper did not appear on the chosen graphics card; using the system default.'));
+                    this._settings.set_string('gpu', '');
+                }
+                return GLib.SOURCE_REMOVE;
+            });
+        }
         if (this._renderers.length > 0 && !this._pointerId) {
             this._pointerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, POINTER_INTERVAL_MS, () => {
                 this._forwardPointer();
@@ -493,7 +520,11 @@ export default class PaperEngineExtension extends Extension {
     }
 
     _spawn(argv, flags, builtin, monitorIndex) {
-        const subprocess = Gio.Subprocess.new(argv, flags);
+        const launcher = new Gio.SubprocessLauncher({flags});
+        const gpu = this._gpus?.find(({name}) => name === this._settings.get_string('gpu'));
+        for (const [name, value] of Object.entries(gpu?.environment ?? {}))
+            launcher.setenv(name, value, true);
+        const subprocess = launcher.spawnv(argv);
         const renderer = {
             subprocess,
             pid: Number(subprocess.get_identifier()),
@@ -531,6 +562,10 @@ export default class PaperEngineExtension extends Extension {
             signalIds.forEach(id => window.disconnect(id));
         this._adoptedWindows.clear();
 
+        if (this._gpuCheckId) {
+            GLib.source_remove(this._gpuCheckId);
+            this._gpuCheckId = 0;
+        }
         if (this._pointerId) {
             GLib.source_remove(this._pointerId);
             this._pointerId = 0;

@@ -486,3 +486,9 @@ msgstr "更新"
 
 msgid "Update the scene renderer?"
 msgstr "更新場景渲染器？"
+
+msgid "Graphics card"
+msgstr "顯示卡"
+
+msgid "The wallpaper did not appear on the chosen graphics card; using the system default."
+msgstr "所選顯示卡未能顯示桌布，已改用系統預設。"

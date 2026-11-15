@@ -216,6 +216,55 @@ export function resolveProperties(project, overrides = {}) {
     return resolved;
 }
 
+// EGL picks its driver from the vendor files, in order, before it looks at
+// which GPU was asked for: with the NVIDIA driver installed, everything ends
+// up on the NVIDIA GPU unless the Mesa file is the only one offered.
+const EGL_VENDOR_DIR = '/usr/share/glvnd/egl_vendor.d';
+const EGL_VENDOR_NVIDIA = GLib.build_filenamev([EGL_VENDOR_DIR, '10_nvidia.json']);
+const EGL_VENDOR_MESA = GLib.build_filenamev([EGL_VENDOR_DIR, '50_mesa.json']);
+
+/**
+ * The environment that makes a process render on a GPU, from what
+ * switcheroo-control gives for it (`[name, value, name, value, …]`).
+ */
+export function gpuEnvironment(pairs, vendorFileExists = path => GLib.file_test(path, GLib.FileTest.EXISTS)) {
+    const environment = {};
+    for (let i = 0; i + 1 < pairs.length; i += 2)
+        environment[pairs[i]] = pairs[i + 1];
+    const vendorFile = '__NV_PRIME_RENDER_OFFLOAD' in environment ? EGL_VENDOR_NVIDIA : EGL_VENDOR_MESA;
+    if (vendorFileExists(vendorFile))
+        environment.__EGL_VENDOR_LIBRARY_FILENAMES = vendorFile;
+    return environment;
+}
+
+/**
+ * The GPUs of the computer, as switcheroo-control (which GNOME uses for
+ * "Launch using Discrete Graphics Card") knows them: resolves to
+ * [{name, isDefault, environment}], or [] where that service is missing.
+ */
+export function listGpus(cancellable = null) {
+    return new Promise((resolve, reject) => {
+        Gio.DBus.system.call(
+            'net.hadess.SwitcherooControl', '/net/hadess/SwitcherooControl',
+            'org.freedesktop.DBus.Properties', 'Get',
+            new GLib.Variant('(ss)', ['net.hadess.SwitcherooControl', 'GPUs']),
+            new GLib.VariantType('(v)'), Gio.DBusCallFlags.NONE, -1, cancellable, (connection, result) => {
+                try {
+                    const [gpus] = connection.call_finish(result).recursiveUnpack();
+                    resolve(gpus.map(gpu => ({
+                        name: gpu.Name, isDefault: gpu.Default, environment: gpuEnvironment(gpu.Environment),
+                    })));
+                } catch (e) {
+                    if (e.matches(Gio.DBusError, Gio.DBusError.SERVICE_UNKNOWN) ||
+                        e.matches(Gio.DBusError, Gio.DBusError.NAME_HAS_NO_OWNER))
+                        resolve([]);
+                    else
+                        reject(e);
+                }
+            });
+    });
+}
+
 /** Path of the linux-wallpaperengine binary, or null when it isn't installed. */
 export function findSceneRenderer(configuredPath) {
     if (configuredPath)
