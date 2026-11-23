@@ -10,6 +10,8 @@
 import GLib from 'gi://GLib';
 import Soup from 'gi://Soup?version=3.0';
 
+import {CACHE_DIR} from './library.js';
+
 const BROWSE_URL = 'https://steamcommunity.com/workshop/browse/';
 const WALLPAPER_ENGINE_APP_ID = '431960';
 
@@ -38,7 +40,7 @@ const session = new Soup.Session({
     user_agent: 'Mozilla/5.0 (X11; Linux x86_64)', timeout: 20, max_conns: 16, max_conns_per_host: 12,
 });
 const cache = new Soup.Cache({
-    cache_dir: GLib.build_filenamev([GLib.get_user_cache_dir(), 'gnome-paper-engine', 'http']),
+    cache_dir: GLib.build_filenamev([CACHE_DIR, 'http']),
     cache_type: Soup.CacheType.SINGLE_USER,
 });
 cache.set_max_size(CACHE_SIZE_BYTES);

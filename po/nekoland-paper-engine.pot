@@ -1,0 +1,665 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the nekoland-paper-engine package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: nekoland-paper-engine\n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/daemon.js:380
+#, javascript-format
+msgid "No wallpaper project found in %s"
+msgstr ""
+
+#: src/daemon.js:398
+#, javascript-format
+msgid "“%s” is a “%s” wallpaper, which is not supported"
+msgstr ""
+
+#: src/daemon.js:401
+#, javascript-format
+msgid "Could not start the wallpaper renderer: %s"
+msgstr ""
+
+#: src/daemon.js:429
+msgid ""
+"Scene wallpapers need the scene renderer. Install it from the Paper Engine "
+"window."
+msgstr ""
+
+#: src/daemon.js:434
+msgid ""
+"Scene wallpapers need the scene assets. Download them from the Paper Engine "
+"window."
+msgstr ""
+
+#: src/daemon.js:499
+msgid "The wallpaper renderer keeps crashing; giving up on this wallpaper."
+msgstr ""
+
+#: src/picker.js:45 src/picker.js:64
+msgid "Scene"
+msgstr ""
+
+#: src/picker.js:45 src/picker.js:65
+msgid "Video"
+msgstr ""
+
+#: src/picker.js:45 src/picker.js:66
+msgid "Web"
+msgstr ""
+
+#: src/picker.js:46
+msgid "Fill (crop)"
+msgstr ""
+
+#: src/picker.js:46
+msgid "Fit (letterbox)"
+msgstr ""
+
+#: src/picker.js:46
+msgid "Stretch"
+msgstr ""
+
+#: src/picker.js:48 src/picker.js:1264
+msgid "System default"
+msgstr ""
+
+#: src/picker.js:49
+msgid "Keep running"
+msgstr ""
+
+#: src/picker.js:49 src/picker.js:1208
+msgid "Mute"
+msgstr ""
+
+#: src/picker.js:49 src/picker.js:1206
+msgid "Pause"
+msgstr ""
+
+#: src/picker.js:49
+msgid "Stop (free memory)"
+msgstr ""
+
+#: src/picker.js:52
+msgid "Window on screen"
+msgstr ""
+
+#: src/picker.js:53
+msgid "Window maximized"
+msgstr ""
+
+#: src/picker.js:54
+msgid "Window fullscreen"
+msgstr ""
+
+#: src/picker.js:55
+msgid "Other app playing audio"
+msgstr ""
+
+#: src/picker.js:56
+msgid "On battery power"
+msgstr ""
+
+#: src/picker.js:63
+msgid "All"
+msgstr ""
+
+#: src/picker.js:67 src/picker.js:78 src/picker.js:1276
+msgid "Playlist"
+msgstr ""
+
+#: src/picker.js:70
+msgid "Trending this week"
+msgstr ""
+
+#: src/picker.js:71
+msgid "Most recent"
+msgstr ""
+
+#: src/picker.js:72
+msgid "Most subscribed"
+msgstr ""
+
+#: src/picker.js:74 src/picker.js:851
+msgid "Subscribed"
+msgstr ""
+
+#: src/picker.js:75 src/picker.js:80
+msgid "Playback and performance"
+msgstr ""
+
+#: src/picker.js:77
+msgid "All wallpapers"
+msgstr ""
+
+#: src/picker.js:77
+msgid "Scene wallpapers"
+msgstr ""
+
+#: src/picker.js:77
+msgid "Video wallpapers"
+msgstr ""
+
+#: src/picker.js:78
+msgid "Web wallpapers"
+msgstr ""
+
+#: src/picker.js:78
+msgid "Subscribed wallpapers"
+msgstr ""
+
+#: src/picker.js:79
+msgid "Workshop · Trending this week"
+msgstr ""
+
+#: src/picker.js:79
+msgid "Workshop · Most recent"
+msgstr ""
+
+#: src/picker.js:80
+msgid "Workshop · Most subscribed"
+msgstr ""
+
+#: src/picker.js:84
+msgid "Anime"
+msgstr ""
+
+#: src/picker.js:84
+msgid "Game"
+msgstr ""
+
+#: src/picker.js:84
+msgid "Landscape"
+msgstr ""
+
+#: src/picker.js:85
+msgid "Cyberpunk"
+msgstr ""
+
+#: src/picker.js:85
+msgid "Animal"
+msgstr ""
+
+#: src/picker.js:110
+msgid "Scheme color"
+msgstr ""
+
+#: src/picker.js:314
+msgid "Library"
+msgstr ""
+
+#: src/picker.js:315 src/picker.js:925
+msgid "Steam Workshop"
+msgstr ""
+
+#: src/picker.js:316
+msgid "Preferences"
+msgstr ""
+
+#: src/picker.js:334 src/picker.js:473
+msgid "Search wallpapers"
+msgstr ""
+
+#: src/picker.js:336
+msgid "Refresh"
+msgstr ""
+
+#: src/picker.js:373
+msgid "A newer version of Paper Engine is installed"
+msgstr ""
+
+#: src/picker.js:374
+msgid "Restart"
+msgstr ""
+
+#: src/picker.js:415
+msgid "Load more"
+msgstr ""
+
+#: src/picker.js:451
+msgid "Details"
+msgstr ""
+
+#: src/picker.js:473
+msgid "Search the Workshop"
+msgstr ""
+
+#: src/picker.js:480
+msgid "Adjust playback, volume and when to pause."
+msgstr ""
+
+#: src/picker.js:521
+msgid "Scene wallpapers need the scene renderer"
+msgstr ""
+
+#: src/picker.js:521 src/picker.js:567
+msgid "Install"
+msgstr ""
+
+#: src/picker.js:525
+msgid "Scene wallpapers need the scene assets"
+msgstr ""
+
+#: src/picker.js:525 src/picker.js:633
+msgid "Download"
+msgstr ""
+
+#: src/picker.js:529
+msgid "The scene renderer needs updating"
+msgstr ""
+
+#: src/picker.js:529 src/picker.js:567
+msgid "Update"
+msgstr ""
+
+#: src/picker.js:563
+msgid "Update the scene renderer?"
+msgstr ""
+
+#: src/picker.js:563
+msgid "Install the scene renderer?"
+msgstr ""
+
+#: src/picker.js:564
+msgid ""
+"Downloads about 1 GB and builds for a few minutes. Nothing is installed "
+"system-wide."
+msgstr ""
+
+#: src/picker.js:566 src/picker.js:632 src/picker.js:662 src/picker.js:1314
+msgid "Cancel"
+msgstr ""
+
+#: src/picker.js:591
+msgid "The scene renderer could not be installed"
+msgstr ""
+
+#: src/picker.js:591 src/picker.js:718
+msgid "Show log"
+msgstr ""
+
+#: src/picker.js:596
+msgid "Installing the scene renderer"
+msgstr ""
+
+#: src/picker.js:624
+msgid "Steam account name"
+msgstr ""
+
+#: src/picker.js:628
+msgid "Download the scene assets?"
+msgstr ""
+
+#: src/picker.js:629
+msgid ""
+"Signs in to Steam with SteamCMD and downloads the Windows version of "
+"Wallpaper Engine, about 800 MB, keeping only its assets. The account must "
+"own Wallpaper Engine."
+msgstr ""
+
+#: src/picker.js:653
+msgid "Password"
+msgstr ""
+
+#: src/picker.js:654
+msgid "Code"
+msgstr ""
+
+#: src/picker.js:658
+msgid "Steam password"
+msgstr ""
+
+#: src/picker.js:658
+msgid "Steam Guard code"
+msgstr ""
+
+#: src/picker.js:659
+msgid "Enter the code from the Steam Mobile app or from the email Steam sent."
+msgstr ""
+
+#: src/picker.js:663
+msgid "Sign in"
+msgstr ""
+
+#: src/picker.js:689
+msgid "Installing SteamCMD"
+msgstr ""
+
+#: src/picker.js:690
+msgid "Signing in to Steam"
+msgstr ""
+
+#: src/picker.js:691
+msgid "Approve the sign-in in the Steam Mobile app"
+msgstr ""
+
+#: src/picker.js:692
+msgid "Downloading the scene assets"
+msgstr ""
+
+#: src/picker.js:693
+msgid "Installing the scene assets"
+msgstr ""
+
+#: src/picker.js:696
+msgid "Steam did not accept the sign-in"
+msgstr ""
+
+#: src/picker.js:697
+msgid "Steam is limiting sign-ins. Try again later."
+msgstr ""
+
+#: src/picker.js:698
+msgid "This Steam account does not own Wallpaper Engine"
+msgstr ""
+
+#: src/picker.js:718
+msgid "The scene assets could not be downloaded"
+msgstr ""
+
+#: src/picker.js:740
+#, javascript-format
+msgid "%s wallpapers"
+msgstr ""
+
+#: src/picker.js:744
+msgid "No wallpapers here yet"
+msgstr ""
+
+#: src/picker.js:745
+msgid ""
+"Install Wallpaper Engine in Steam, then subscribe to wallpapers in the "
+"Workshop; they show up here once Steam has downloaded them."
+msgstr ""
+
+#: src/picker.js:746
+msgid "Install Wallpaper Engine"
+msgstr ""
+
+#: src/picker.js:748 src/picker.js:766
+msgid "Select a wallpaper to see its details."
+msgstr ""
+
+#: src/picker.js:781
+msgid "Could not load the Workshop"
+msgstr ""
+
+#: src/picker.js:783
+msgid "Retry"
+msgstr ""
+
+#: src/picker.js:792
+msgid "No matching wallpapers"
+msgstr ""
+
+#: src/picker.js:793
+msgid "Try another keyword or tag."
+msgstr ""
+
+#: src/picker.js:797
+#, javascript-format
+msgid "%s subscribers"
+msgstr ""
+
+#: src/picker.js:847 src/picker.js:926
+msgid "In use"
+msgstr ""
+
+#: src/picker.js:849
+msgid "Not supported"
+msgstr ""
+
+#: src/picker.js:925
+msgid "Local wallpaper"
+msgstr ""
+
+#: src/picker.js:930
+#, javascript-format
+msgid "%s ratings"
+msgstr ""
+
+#: src/picker.js:934
+msgid "Cannot be applied"
+msgstr ""
+
+#: src/picker.js:935
+msgid ""
+"This scene uses a 3D perspective camera, which the scene renderer cannot "
+"show yet."
+msgstr ""
+
+#: src/picker.js:937 src/picker.js:1210
+msgid "Stop wallpaper"
+msgstr ""
+
+#: src/picker.js:939
+msgid "Apply wallpaper"
+msgstr ""
+
+#: src/picker.js:941
+#, javascript-format
+msgid "Subscribe in Steam (%s)"
+msgstr ""
+
+#: src/picker.js:943
+msgid "Opened in Steam: press Subscribe there and it downloads automatically."
+msgstr ""
+
+#: src/picker.js:945
+msgid ""
+"Subscribing goes through your Steam account; the wallpaper appears in the "
+"library once it is downloaded."
+msgstr ""
+
+#: src/picker.js:961
+#, javascript-format
+msgid "Apply to %s only"
+msgstr ""
+
+#: src/picker.js:970
+msgid "Remove from playlist"
+msgstr ""
+
+#: src/picker.js:970
+msgid "Add to playlist"
+msgstr ""
+
+#: src/picker.js:978
+msgid "Open Workshop page in Steam"
+msgstr ""
+
+#: src/picker.js:983
+msgid "About this wallpaper"
+msgstr ""
+
+#: src/picker.js:985
+msgid "Subscribers"
+msgstr ""
+
+#: src/picker.js:986
+msgid "Favorites"
+msgstr ""
+
+#: src/picker.js:987
+msgid "Updated"
+msgstr ""
+
+#: src/picker.js:988
+msgid "Tags"
+msgstr ""
+
+#: src/picker.js:995
+msgid "Description"
+msgstr ""
+
+#: src/picker.js:1018
+msgid "Options"
+msgstr ""
+
+#: src/picker.js:1039
+#, javascript-format
+msgid "%s options"
+msgstr ""
+
+#: src/picker.js:1040
+#, javascript-format
+msgid "Show all %s options"
+msgstr ""
+
+#: src/picker.js:1181
+msgid "No live wallpaper applied"
+msgstr ""
+
+#: src/picker.js:1188
+msgid "Paused"
+msgstr ""
+
+#: src/picker.js:1188
+msgid "Playing"
+msgstr ""
+
+#: src/picker.js:1206
+msgid "Resume"
+msgstr ""
+
+#: src/picker.js:1208
+msgid "Unmute"
+msgstr ""
+
+#: src/picker.js:1220
+msgid "Playback"
+msgstr ""
+
+#: src/picker.js:1223
+msgid "Mute wallpaper audio"
+msgstr ""
+
+#: src/picker.js:1228
+msgid "Volume"
+msgstr ""
+
+#: src/picker.js:1234
+msgid "Scaling"
+msgstr ""
+
+#: src/picker.js:1237
+msgid "Still image as Nekoland wallpaper"
+msgstr ""
+
+#: src/picker.js:1238
+msgid ""
+"Shown on the lock screen, in the overview, and while the live wallpaper is "
+"not running"
+msgstr ""
+
+#: src/picker.js:1243
+msgid "Playback rules"
+msgstr ""
+
+#: src/picker.js:1248
+msgid "Quality"
+msgstr ""
+
+#: src/picker.js:1251
+msgid "Frame rate limit"
+msgstr ""
+
+#: src/picker.js:1256
+msgid "Scene resolution"
+msgstr ""
+
+#: src/picker.js:1263
+msgid "Graphics card"
+msgstr ""
+
+#: src/picker.js:1271
+msgid "Scene particles"
+msgstr ""
+
+#: src/picker.js:1277
+msgid ""
+"Add wallpapers to the playlist from their details, then let them rotate."
+msgstr ""
+
+#: src/picker.js:1281
+msgid "Change wallpaper every"
+msgstr ""
+
+#: src/picker.js:1282
+msgid "Minutes; 0 turns rotation off"
+msgstr ""
+
+#: src/picker.js:1287
+msgid "Shuffle"
+msgstr ""
+
+#: src/picker.js:1291
+msgid "Interface"
+msgstr ""
+
+#: src/picker.js:1293
+msgid "Language"
+msgstr ""
+
+#: src/picker.js:1294
+msgid "Takes effect the next time this window is opened"
+msgstr ""
+
+#: src/picker.js:1298
+msgid "Steam account"
+msgstr ""
+
+#: src/picker.js:1301 src/picker.js:1315
+msgid "Sign out"
+msgstr ""
+
+#: src/picker.js:1306
+msgid "Not signed in"
+msgstr ""
+
+#: src/picker.js:1311
+msgid "Sign out of Steam?"
+msgstr ""
+
+#: src/picker.js:1312
+msgid ""
+"The saved sign-in is removed. Downloading the scene assets again asks for "
+"the password."
+msgstr ""
+
+#: src/picker.js:1322
+msgid "Could not sign out of Steam"
+msgstr ""
+
+#: src/picker.js:1330
+msgid "Other wallpaper folders"
+msgstr ""
+
+#: src/picker.js:1331
+msgid ""
+"Each sub-folder is one wallpaper (with a project.json). Steam libraries are "
+"found automatically."
+msgstr ""
+
+#: src/picker.js:1335
+msgid "Add folder"
+msgstr ""
+
+#: src/picker.js:1337
+msgid "Choose a wallpaper folder"
+msgstr ""
+
+#: src/picker.js:1358
+msgid "Remove"
+msgstr ""

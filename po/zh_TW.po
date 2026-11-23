@@ -1,7 +1,8 @@
-# Traditional Chinese (Taiwan) translation for GNOME Paper Engine.
+# Traditional Chinese (Taiwan) translation for Paper Engine for Nekoland.
 msgid ""
 msgstr ""
-"Project-Id-Version: gnome-paper-engine\n"
+"Project-Id-Version: nekoland-paper-engine\n"
+"Report-Msgid-Bugs-To: \n"
 "PO-Revision-Date: 2026-11-12 02:00+0800\n"
 "Last-Translator: KoukeNeko\n"
 "Language-Team: Chinese (Traditional)\n"
@@ -11,484 +12,656 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-msgid "Scene"
-msgstr "場景"
-
-msgid "Video"
-msgstr "影片"
-
-msgid "Web"
-msgstr "網頁"
-
-msgid "Fill (crop)"
-msgstr "填滿（裁切）"
-
-msgid "Fit (letterbox)"
-msgstr "完整顯示（留邊）"
-
-msgid "Stretch"
-msgstr "延展"
-
-msgid "All"
-msgstr "全部"
-
-msgid "Trending this week"
-msgstr "本週熱門"
-
-msgid "Most recent"
-msgstr "最新上傳"
-
-msgid "Most subscribed"
-msgstr "最多訂閱"
-
-msgid "Subscribed"
-msgstr "已訂閱"
-
-msgid "Playback and performance"
-msgstr "播放與效能"
-
-msgid "All wallpapers"
-msgstr "全部桌布"
-
-msgid "Scene wallpapers"
-msgstr "場景桌布"
-
-msgid "Video wallpapers"
-msgstr "影片桌布"
-
-msgid "Web wallpapers"
-msgstr "網頁桌布"
-
-msgid "Subscribed wallpapers"
-msgstr "已訂閱的桌布"
-
-msgid "Workshop · Trending this week"
-msgstr "工作坊・本週熱門"
-
-msgid "Workshop · Most recent"
-msgstr "工作坊・最新上傳"
-
-msgid "Workshop · Most subscribed"
-msgstr "工作坊・最多訂閱"
-
-msgid "Anime"
-msgstr "動漫"
-
-msgid "Game"
-msgstr "遊戲"
-
-msgid "Landscape"
-msgstr "風景"
-
-msgid "Cyberpunk"
-msgstr "賽博龐克"
-
-msgid "Animal"
-msgstr "動物"
-
-msgid "Scheme color"
-msgstr "主題色"
-
-msgid "Library"
-msgstr "桌布庫"
-
-msgid "Steam Workshop"
-msgstr "Steam 工作坊"
-
-msgid "Preferences"
-msgstr "偏好設定"
-
-msgid "Search wallpapers"
-msgstr "搜尋桌布"
-
-msgid "Refresh"
-msgstr "重新整理"
-
-
-msgid "Load more"
-msgstr "載入更多"
-
-msgid "Details"
-msgstr "詳細資訊"
-
-msgid "Search the Workshop"
-msgstr "搜尋工作坊"
-
-msgid "Adjust playback, volume and when to pause."
-msgstr "調整播放、音量與暫停時機。"
-
-msgid "%s wallpapers"
-msgstr "%s 張"
-
-msgid "No wallpapers here yet"
-msgstr "這裡還沒有桌布"
-
-msgid "Install Wallpaper Engine in Steam, then subscribe to wallpapers in the Workshop; they show up here once Steam has downloaded them."
-msgstr "在 Steam 安裝 Wallpaper Engine，然後到工作坊訂閱桌布；Steam 下載完成後會出現在這裡。"
-
-msgid "Install Wallpaper Engine"
-msgstr "安裝 Wallpaper Engine"
-
-msgid "Select a wallpaper to see its details."
-msgstr "選一張桌布來查看詳細資訊。"
-
-msgid "Could not load the Workshop"
-msgstr "無法載入工作坊"
-
-msgid "Retry"
-msgstr "重試"
-
-msgid "No matching wallpapers"
-msgstr "找不到符合的桌布"
-
-msgid "Try another keyword or tag."
-msgstr "換個關鍵字或標籤試試。"
-
-msgid "%s subscribers"
-msgstr "%s 人訂閱"
-
-msgid "In use"
-msgstr "使用中"
-
-msgid "Not supported"
-msgstr "無法顯示"
-
-msgid "Local wallpaper"
-msgstr "本機桌布"
-
-msgid "%s ratings"
-msgstr "%s 則評價"
-
-msgid "Cannot be applied"
-msgstr "無法套用"
-
-msgid "This scene uses a 3D perspective camera, which the scene renderer cannot show yet."
-msgstr "這張場景使用 3D 透視攝影機，目前的場景渲染器還無法顯示。"
-
-msgid "Stop wallpaper"
-msgstr "停止桌布"
-
-msgid "Apply wallpaper"
-msgstr "套用桌布"
-
-msgid "Subscribe in Steam (%s)"
-msgstr "在 Steam 訂閱（%s）"
-
-msgid "Opened in Steam: press Subscribe there and it downloads automatically."
-msgstr "已在 Steam 開啟這張桌布，按下「訂閱」後會自動下載。"
-
-msgid "Subscribing goes through your Steam account; the wallpaper appears in the library once it is downloaded."
-msgstr "訂閱會透過你的 Steam 帳號進行；下載完成後自動出現在桌布庫。"
-
-msgid "Open Workshop page in Steam"
-msgstr "在 Steam 開啟工作坊頁面"
-
-msgid "About this wallpaper"
-msgstr "作品資訊"
-
-msgid "Subscribers"
-msgstr "訂閱人數"
-
-msgid "Favorites"
-msgstr "收藏人數"
-
-msgid "Updated"
-msgstr "更新日期"
-
-msgid "Tags"
-msgstr "標籤"
-
-msgid "Description"
-msgstr "作者說明"
-
-msgid "Options"
-msgstr "自訂選項"
-
-msgid "%s options"
-msgstr "%s 項"
-
-msgid "Show all %s options"
-msgstr "顯示全部 %s 項"
-
-msgid "No live wallpaper applied"
-msgstr "未套用動態桌布"
-
-msgid "Paused"
-msgstr "已暫停"
-
-msgid "Playing"
-msgstr "播放中"
-
-msgid "Resume"
-msgstr "繼續播放"
-
-msgid "Pause"
-msgstr "暫停"
-
-msgid "Unmute"
-msgstr "取消靜音"
-
-msgid "Mute"
-msgstr "靜音"
-
-msgid "Playback"
-msgstr "播放"
-
-msgid "Mute wallpaper audio"
-msgstr "桌布靜音"
-
-msgid "Volume"
-msgstr "音量"
-
-msgid "Scaling"
-msgstr "縮放方式"
-
-msgid "Show on the lock screen"
-msgstr "鎖定畫面也顯示桌布"
-
-msgid "When off, playback pauses while the screen is locked"
-msgstr "關閉時，鎖定期間會暫停播放"
-
-msgid "Other wallpaper folders"
-msgstr "其他桌布資料夾"
-
-msgid "Each sub-folder is one wallpaper (with a project.json). Steam libraries are found automatically."
-msgstr "資料夾內每個子資料夾是一張桌布（含 project.json）。Steam 收藏庫會自動找到，不必加入。"
-
-msgid "Add folder"
-msgstr "加入資料夾"
-
-msgid "Choose a wallpaper folder"
-msgstr "選擇桌布資料夾"
-
-msgid "Remove"
-msgstr "移除"
-
+#: src/daemon.js:380
+#, javascript-format
 msgid "No wallpaper project found in %s"
 msgstr "在 %s 找不到桌布專案"
 
+#: src/daemon.js:398
+#, javascript-format
 msgid "“%s” is a “%s” wallpaper, which is not supported"
 msgstr "「%s」是「%s」類型的桌布，目前不支援"
 
+#: src/daemon.js:401
+#, javascript-format
 msgid "Could not start the wallpaper renderer: %s"
 msgstr "無法啟動桌布渲染器：%s"
 
+#: src/daemon.js:429
+msgid ""
+"Scene wallpapers need the scene renderer. Install it from the Paper Engine "
+"window."
+msgstr "場景桌布需要場景渲染器，請在 Paper Engine 視窗中安裝。"
 
-msgid "Scene wallpapers need the scene assets. Download them from the Paper Engine window."
+#: src/daemon.js:434
+msgid ""
+"Scene wallpapers need the scene assets. Download them from the Paper Engine "
+"window."
 msgstr "場景桌布需要場景素材，請在 Paper Engine 視窗中下載。"
 
+#: src/daemon.js:499
 msgid "The wallpaper renderer keeps crashing; giving up on this wallpaper."
 msgstr "桌布渲染器不斷當掉，已停止嘗試這張桌布。"
 
+#: src/picker.js:45 src/picker.js:64
+msgid "Scene"
+msgstr "場景"
+
+#: src/picker.js:45 src/picker.js:65
+msgid "Video"
+msgstr "影片"
+
+#: src/picker.js:45 src/picker.js:66
+msgid "Web"
+msgstr "網頁"
+
+#: src/picker.js:46
+msgid "Fill (crop)"
+msgstr "填滿（裁切）"
+
+#: src/picker.js:46
+msgid "Fit (letterbox)"
+msgstr "完整顯示（留邊）"
+
+#: src/picker.js:46
+msgid "Stretch"
+msgstr "延展"
+
+#: src/picker.js:48 src/picker.js:1264
 msgid "System default"
 msgstr "系統預設"
 
-msgid "Interface"
-msgstr "介面"
-
-msgid "Language"
-msgstr "語言"
-
-msgid "Takes effect the next time this window is opened"
-msgstr "下次開啟這個視窗時生效"
-
-msgid "Playlist"
-msgstr "播放清單"
-
-msgid "Remove from playlist"
-msgstr "從播放清單移除"
-
-msgid "Add to playlist"
-msgstr "加入播放清單"
-
-msgid "Add wallpapers to the playlist from their details, then let them rotate."
-msgstr "在桌布的詳細資訊裡加入播放清單，就能定時輪播。"
-
-msgid "Change wallpaper every"
-msgstr "每隔多久換一張桌布"
-
-msgid "Minutes; 0 turns rotation off"
-msgstr "單位為分鐘；0 表示不輪播"
-
-msgid "Shuffle"
-msgstr "隨機順序"
-
-msgid "Apply to %s only"
-msgstr "只套用到 %s"
-
-msgid "Still image as desktop background"
-msgstr "以靜態畫面作為系統桌布"
-
-msgid "Shown while the live wallpaper is not running"
-msgstr "動態桌布未執行時顯示"
-
-msgid "Windows behind the Dock"
-msgstr "Dock 後方顯示視窗"
-
-msgid "Windows behind the top bar"
-msgstr "頂端列後方顯示視窗"
-
-msgid "Scene wallpapers need the scene renderer"
-msgstr "場景桌布需要場景渲染器"
-
-msgid "Install"
-msgstr "安裝"
-
-msgid "Install the scene renderer?"
-msgstr "安裝場景渲染器？"
-
-msgid "Downloads about 1 GB and builds for a few minutes. Nothing is installed system-wide."
-msgstr "將下載約 1 GB 並建置數分鐘，不會安裝到系統目錄。"
-
-msgid "Cancel"
-msgstr "取消"
-
-msgid "Installing the scene renderer"
-msgstr "正在安裝場景渲染器"
-
-msgid "The scene renderer could not be installed"
-msgstr "無法安裝場景渲染器"
-
-msgid "Show log"
-msgstr "顯示記錄"
-
-msgid "Scene wallpapers need the scene renderer. Install it from the Paper Engine window."
-msgstr "場景桌布需要場景渲染器，請在 Paper Engine 視窗中安裝。"
-
-msgid "Scene wallpapers need the scene assets"
-msgstr "場景桌布需要場景素材"
-
-msgid "Download"
-msgstr "下載"
-
-msgid "Steam account name"
-msgstr "Steam 帳號名稱"
-
-msgid "Download the scene assets?"
-msgstr "下載場景素材？"
-
-msgid "Signs in to Steam with SteamCMD and downloads the Windows version of Wallpaper Engine, about 800 MB, keeping only its assets. The account must own Wallpaper Engine."
-msgstr "將以 SteamCMD 登入 Steam，下載 Windows 版 Wallpaper Engine（約 800 MB），只保留其中的素材。帳號必須擁有 Wallpaper Engine。"
-
-msgid "Password"
-msgstr "密碼"
-
-msgid "Code"
-msgstr "驗證碼"
-
-msgid "Steam password"
-msgstr "Steam 密碼"
-
-msgid "Steam Guard code"
-msgstr "Steam Guard 驗證碼"
-
-msgid "Enter the code from the Steam Mobile app or from the email Steam sent."
-msgstr "請輸入 Steam 行動應用程式或 Steam 寄送的電子郵件中的驗證碼。"
-
-msgid "Sign in"
-msgstr "登入"
-
-msgid "Installing SteamCMD"
-msgstr "正在安裝 SteamCMD"
-
-msgid "Signing in to Steam"
-msgstr "正在登入 Steam"
-
-msgid "Approve the sign-in in the Steam Mobile app"
-msgstr "請在 Steam 行動應用程式中核准登入"
-
-msgid "Downloading the scene assets"
-msgstr "正在下載場景素材"
-
-msgid "Installing the scene assets"
-msgstr "正在安裝場景素材"
-
-msgid "Steam did not accept the sign-in"
-msgstr "Steam 登入失敗"
-
-msgid "Steam is limiting sign-ins. Try again later."
-msgstr "Steam 暫時限制登入，請稍後再試。"
-
-msgid "This Steam account does not own Wallpaper Engine"
-msgstr "這個 Steam 帳號沒有 Wallpaper Engine"
-
-msgid "The scene assets could not be downloaded"
-msgstr "無法下載場景素材"
-
-msgid "A newer version of Paper Engine is installed"
-msgstr "已安裝新版的 Paper Engine"
-
-msgid "Restart"
-msgstr "重新啟動"
-
-msgid "Steam account"
-msgstr "Steam 帳號"
-
-msgid "Sign out"
-msgstr "登出"
-
-msgid "Not signed in"
-msgstr "未登入"
-
-msgid "Sign out of Steam?"
-msgstr "登出 Steam？"
-
-msgid "The saved sign-in is removed. Downloading the scene assets again asks for the password."
-msgstr "將移除已儲存的登入資訊，再次下載場景素材時需重新輸入密碼。"
-
-msgid "Could not sign out of Steam"
-msgstr "無法登出 Steam"
-
-msgid "Pause while the screen is shared"
-msgstr "分享螢幕時暫停"
-
+#: src/picker.js:49
 msgid "Keep running"
 msgstr "繼續播放"
 
+#: src/picker.js:49 src/picker.js:1208
+msgid "Mute"
+msgstr "靜音"
+
+#: src/picker.js:49 src/picker.js:1206
+msgid "Pause"
+msgstr "暫停"
+
+#: src/picker.js:49
 msgid "Stop (free memory)"
 msgstr "停止（釋放記憶體）"
 
-msgid "Other app focused"
-msgstr "其他應用程式使用中"
+#: src/picker.js:52
+msgid "Window on screen"
+msgstr "畫面上有視窗"
 
+#: src/picker.js:53
 msgid "Window maximized"
 msgstr "視窗最大化"
 
+#: src/picker.js:54
 msgid "Window fullscreen"
 msgstr "視窗全螢幕"
 
+#: src/picker.js:55
 msgid "Other app playing audio"
 msgstr "其他應用程式播放音訊"
 
+#: src/picker.js:56
 msgid "On battery power"
 msgstr "使用電池"
 
-msgid "Playback rules"
-msgstr "播放規則"
+#: src/picker.js:63
+msgid "All"
+msgstr "全部"
 
-msgid "Quality"
-msgstr "畫質"
+#: src/picker.js:67 src/picker.js:78 src/picker.js:1276
+msgid "Playlist"
+msgstr "播放清單"
 
-msgid "Frame rate limit"
-msgstr "影格率上限"
+#: src/picker.js:70
+msgid "Trending this week"
+msgstr "本週熱門"
 
-msgid "Scene resolution"
-msgstr "場景解析度"
+#: src/picker.js:71
+msgid "Most recent"
+msgstr "最新上傳"
 
-msgid "Scene particles"
-msgstr "場景粒子效果"
+#: src/picker.js:72
+msgid "Most subscribed"
+msgstr "最多訂閱"
 
+#: src/picker.js:74 src/picker.js:851
+msgid "Subscribed"
+msgstr "已訂閱"
+
+#: src/picker.js:75 src/picker.js:80
+msgid "Playback and performance"
+msgstr "播放與效能"
+
+#: src/picker.js:77
+msgid "All wallpapers"
+msgstr "全部桌布"
+
+#: src/picker.js:77
+msgid "Scene wallpapers"
+msgstr "場景桌布"
+
+#: src/picker.js:77
+msgid "Video wallpapers"
+msgstr "影片桌布"
+
+#: src/picker.js:78
+msgid "Web wallpapers"
+msgstr "網頁桌布"
+
+#: src/picker.js:78
+msgid "Subscribed wallpapers"
+msgstr "已訂閱的桌布"
+
+#: src/picker.js:79
+msgid "Workshop · Trending this week"
+msgstr "工作坊・本週熱門"
+
+#: src/picker.js:79
+msgid "Workshop · Most recent"
+msgstr "工作坊・最新上傳"
+
+#: src/picker.js:80
+msgid "Workshop · Most subscribed"
+msgstr "工作坊・最多訂閱"
+
+#: src/picker.js:84
+msgid "Anime"
+msgstr "動漫"
+
+#: src/picker.js:84
+msgid "Game"
+msgstr "遊戲"
+
+#: src/picker.js:84
+msgid "Landscape"
+msgstr "風景"
+
+#: src/picker.js:85
+msgid "Cyberpunk"
+msgstr "賽博龐克"
+
+#: src/picker.js:85
+msgid "Animal"
+msgstr "動物"
+
+#: src/picker.js:110
+msgid "Scheme color"
+msgstr "主題色"
+
+#: src/picker.js:314
+msgid "Library"
+msgstr "桌布庫"
+
+#: src/picker.js:315 src/picker.js:925
+msgid "Steam Workshop"
+msgstr "Steam 工作坊"
+
+#: src/picker.js:316
+msgid "Preferences"
+msgstr "偏好設定"
+
+#: src/picker.js:334 src/picker.js:473
+msgid "Search wallpapers"
+msgstr "搜尋桌布"
+
+#: src/picker.js:336
+msgid "Refresh"
+msgstr "重新整理"
+
+#: src/picker.js:373
+msgid "A newer version of Paper Engine is installed"
+msgstr "已安裝新版的 Paper Engine"
+
+#: src/picker.js:374
+msgid "Restart"
+msgstr "重新啟動"
+
+#: src/picker.js:415
+msgid "Load more"
+msgstr "載入更多"
+
+#: src/picker.js:451
+msgid "Details"
+msgstr "詳細資訊"
+
+#: src/picker.js:473
+msgid "Search the Workshop"
+msgstr "搜尋工作坊"
+
+#: src/picker.js:480
+msgid "Adjust playback, volume and when to pause."
+msgstr "調整播放、音量與暫停時機。"
+
+#: src/picker.js:521
+msgid "Scene wallpapers need the scene renderer"
+msgstr "場景桌布需要場景渲染器"
+
+#: src/picker.js:521 src/picker.js:567
+msgid "Install"
+msgstr "安裝"
+
+#: src/picker.js:525
+msgid "Scene wallpapers need the scene assets"
+msgstr "場景桌布需要場景素材"
+
+#: src/picker.js:525 src/picker.js:633
+msgid "Download"
+msgstr "下載"
+
+#: src/picker.js:529
 msgid "The scene renderer needs updating"
 msgstr "場景渲染器需要更新"
 
+#: src/picker.js:529 src/picker.js:567
 msgid "Update"
 msgstr "更新"
 
+#: src/picker.js:563
 msgid "Update the scene renderer?"
 msgstr "更新場景渲染器？"
 
+#: src/picker.js:563
+msgid "Install the scene renderer?"
+msgstr "安裝場景渲染器？"
+
+#: src/picker.js:564
+msgid ""
+"Downloads about 1 GB and builds for a few minutes. Nothing is installed "
+"system-wide."
+msgstr "將下載約 1 GB 並建置數分鐘，不會安裝到系統目錄。"
+
+#: src/picker.js:566 src/picker.js:632 src/picker.js:662 src/picker.js:1314
+msgid "Cancel"
+msgstr "取消"
+
+#: src/picker.js:591
+msgid "The scene renderer could not be installed"
+msgstr "無法安裝場景渲染器"
+
+#: src/picker.js:591 src/picker.js:718
+msgid "Show log"
+msgstr "顯示記錄"
+
+#: src/picker.js:596
+msgid "Installing the scene renderer"
+msgstr "正在安裝場景渲染器"
+
+#: src/picker.js:624
+msgid "Steam account name"
+msgstr "Steam 帳號名稱"
+
+#: src/picker.js:628
+msgid "Download the scene assets?"
+msgstr "下載場景素材？"
+
+#: src/picker.js:629
+msgid ""
+"Signs in to Steam with SteamCMD and downloads the Windows version of "
+"Wallpaper Engine, about 800 MB, keeping only its assets. The account must "
+"own Wallpaper Engine."
+msgstr ""
+"將以 SteamCMD 登入 Steam，下載 Windows 版 Wallpaper Engine（約 800 MB），只保"
+"留其中的素材。帳號必須擁有 Wallpaper Engine。"
+
+#: src/picker.js:653
+msgid "Password"
+msgstr "密碼"
+
+#: src/picker.js:654
+msgid "Code"
+msgstr "驗證碼"
+
+#: src/picker.js:658
+msgid "Steam password"
+msgstr "Steam 密碼"
+
+#: src/picker.js:658
+msgid "Steam Guard code"
+msgstr "Steam Guard 驗證碼"
+
+#: src/picker.js:659
+msgid "Enter the code from the Steam Mobile app or from the email Steam sent."
+msgstr "請輸入 Steam 行動應用程式或 Steam 寄送的電子郵件中的驗證碼。"
+
+#: src/picker.js:663
+msgid "Sign in"
+msgstr "登入"
+
+#: src/picker.js:689
+msgid "Installing SteamCMD"
+msgstr "正在安裝 SteamCMD"
+
+#: src/picker.js:690
+msgid "Signing in to Steam"
+msgstr "正在登入 Steam"
+
+#: src/picker.js:691
+msgid "Approve the sign-in in the Steam Mobile app"
+msgstr "請在 Steam 行動應用程式中核准登入"
+
+#: src/picker.js:692
+msgid "Downloading the scene assets"
+msgstr "正在下載場景素材"
+
+#: src/picker.js:693
+msgid "Installing the scene assets"
+msgstr "正在安裝場景素材"
+
+#: src/picker.js:696
+msgid "Steam did not accept the sign-in"
+msgstr "Steam 登入失敗"
+
+#: src/picker.js:697
+msgid "Steam is limiting sign-ins. Try again later."
+msgstr "Steam 暫時限制登入，請稍後再試。"
+
+#: src/picker.js:698
+msgid "This Steam account does not own Wallpaper Engine"
+msgstr "這個 Steam 帳號沒有 Wallpaper Engine"
+
+#: src/picker.js:718
+msgid "The scene assets could not be downloaded"
+msgstr "無法下載場景素材"
+
+#: src/picker.js:740
+#, javascript-format
+msgid "%s wallpapers"
+msgstr "%s 張"
+
+#: src/picker.js:744
+msgid "No wallpapers here yet"
+msgstr "這裡還沒有桌布"
+
+#: src/picker.js:745
+msgid ""
+"Install Wallpaper Engine in Steam, then subscribe to wallpapers in the "
+"Workshop; they show up here once Steam has downloaded them."
+msgstr ""
+"在 Steam 安裝 Wallpaper Engine，然後到工作坊訂閱桌布；Steam 下載完成後會出現"
+"在這裡。"
+
+#: src/picker.js:746
+msgid "Install Wallpaper Engine"
+msgstr "安裝 Wallpaper Engine"
+
+#: src/picker.js:748 src/picker.js:766
+msgid "Select a wallpaper to see its details."
+msgstr "選一張桌布來查看詳細資訊。"
+
+#: src/picker.js:781
+msgid "Could not load the Workshop"
+msgstr "無法載入工作坊"
+
+#: src/picker.js:783
+msgid "Retry"
+msgstr "重試"
+
+#: src/picker.js:792
+msgid "No matching wallpapers"
+msgstr "找不到符合的桌布"
+
+#: src/picker.js:793
+msgid "Try another keyword or tag."
+msgstr "換個關鍵字或標籤試試。"
+
+#: src/picker.js:797
+#, javascript-format
+msgid "%s subscribers"
+msgstr "%s 人訂閱"
+
+#: src/picker.js:847 src/picker.js:926
+msgid "In use"
+msgstr "使用中"
+
+#: src/picker.js:849
+msgid "Not supported"
+msgstr "無法顯示"
+
+#: src/picker.js:925
+msgid "Local wallpaper"
+msgstr "本機桌布"
+
+#: src/picker.js:930
+#, javascript-format
+msgid "%s ratings"
+msgstr "%s 則評價"
+
+#: src/picker.js:934
+msgid "Cannot be applied"
+msgstr "無法套用"
+
+#: src/picker.js:935
+msgid ""
+"This scene uses a 3D perspective camera, which the scene renderer cannot "
+"show yet."
+msgstr "這張場景使用 3D 透視攝影機，目前的場景渲染器還無法顯示。"
+
+#: src/picker.js:937 src/picker.js:1210
+msgid "Stop wallpaper"
+msgstr "停止桌布"
+
+#: src/picker.js:939
+msgid "Apply wallpaper"
+msgstr "套用桌布"
+
+#: src/picker.js:941
+#, javascript-format
+msgid "Subscribe in Steam (%s)"
+msgstr "在 Steam 訂閱（%s）"
+
+#: src/picker.js:943
+msgid "Opened in Steam: press Subscribe there and it downloads automatically."
+msgstr "已在 Steam 開啟這張桌布，按下「訂閱」後會自動下載。"
+
+#: src/picker.js:945
+msgid ""
+"Subscribing goes through your Steam account; the wallpaper appears in the "
+"library once it is downloaded."
+msgstr "訂閱會透過你的 Steam 帳號進行；下載完成後自動出現在桌布庫。"
+
+#: src/picker.js:961
+#, javascript-format
+msgid "Apply to %s only"
+msgstr "只套用到 %s"
+
+#: src/picker.js:970
+msgid "Remove from playlist"
+msgstr "從播放清單移除"
+
+#: src/picker.js:970
+msgid "Add to playlist"
+msgstr "加入播放清單"
+
+#: src/picker.js:978
+msgid "Open Workshop page in Steam"
+msgstr "在 Steam 開啟工作坊頁面"
+
+#: src/picker.js:983
+msgid "About this wallpaper"
+msgstr "作品資訊"
+
+#: src/picker.js:985
+msgid "Subscribers"
+msgstr "訂閱人數"
+
+#: src/picker.js:986
+msgid "Favorites"
+msgstr "收藏人數"
+
+#: src/picker.js:987
+msgid "Updated"
+msgstr "更新日期"
+
+#: src/picker.js:988
+msgid "Tags"
+msgstr "標籤"
+
+#: src/picker.js:995
+msgid "Description"
+msgstr "作者說明"
+
+#: src/picker.js:1018
+msgid "Options"
+msgstr "自訂選項"
+
+#: src/picker.js:1039
+#, javascript-format
+msgid "%s options"
+msgstr "%s 項"
+
+#: src/picker.js:1040
+#, javascript-format
+msgid "Show all %s options"
+msgstr "顯示全部 %s 項"
+
+#: src/picker.js:1181
+msgid "No live wallpaper applied"
+msgstr "未套用動態桌布"
+
+#: src/picker.js:1188
+msgid "Paused"
+msgstr "已暫停"
+
+#: src/picker.js:1188
+msgid "Playing"
+msgstr "播放中"
+
+#: src/picker.js:1206
+msgid "Resume"
+msgstr "繼續播放"
+
+#: src/picker.js:1208
+msgid "Unmute"
+msgstr "取消靜音"
+
+#: src/picker.js:1220
+msgid "Playback"
+msgstr "播放"
+
+#: src/picker.js:1223
+msgid "Mute wallpaper audio"
+msgstr "桌布靜音"
+
+#: src/picker.js:1228
+msgid "Volume"
+msgstr "音量"
+
+#: src/picker.js:1234
+msgid "Scaling"
+msgstr "縮放方式"
+
+#: src/picker.js:1237
+msgid "Still image as Nekoland wallpaper"
+msgstr "以靜態畫面作為 Nekoland 桌布"
+
+#: src/picker.js:1238
+msgid ""
+"Shown on the lock screen, in the overview, and while the live wallpaper is "
+"not running"
+msgstr "顯示於鎖定畫面、總覽，以及動態桌布未執行時"
+
+#: src/picker.js:1243
+msgid "Playback rules"
+msgstr "播放規則"
+
+#: src/picker.js:1248
+msgid "Quality"
+msgstr "畫質"
+
+#: src/picker.js:1251
+msgid "Frame rate limit"
+msgstr "影格率上限"
+
+#: src/picker.js:1256
+msgid "Scene resolution"
+msgstr "場景解析度"
+
+#: src/picker.js:1263
 msgid "Graphics card"
 msgstr "顯示卡"
 
-msgid "The wallpaper did not appear on the chosen graphics card; using the system default."
-msgstr "所選顯示卡未能顯示桌布，已改用系統預設。"
+#: src/picker.js:1271
+msgid "Scene particles"
+msgstr "場景粒子效果"
+
+#: src/picker.js:1277
+msgid ""
+"Add wallpapers to the playlist from their details, then let them rotate."
+msgstr "在桌布的詳細資訊裡加入播放清單，就能定時輪播。"
+
+#: src/picker.js:1281
+msgid "Change wallpaper every"
+msgstr "每隔多久換一張桌布"
+
+#: src/picker.js:1282
+msgid "Minutes; 0 turns rotation off"
+msgstr "單位為分鐘；0 表示不輪播"
+
+#: src/picker.js:1287
+msgid "Shuffle"
+msgstr "隨機順序"
+
+#: src/picker.js:1291
+msgid "Interface"
+msgstr "介面"
+
+#: src/picker.js:1293
+msgid "Language"
+msgstr "語言"
+
+#: src/picker.js:1294
+msgid "Takes effect the next time this window is opened"
+msgstr "下次開啟這個視窗時生效"
+
+#: src/picker.js:1298
+msgid "Steam account"
+msgstr "Steam 帳號"
+
+#: src/picker.js:1301 src/picker.js:1315
+msgid "Sign out"
+msgstr "登出"
+
+#: src/picker.js:1306
+msgid "Not signed in"
+msgstr "未登入"
+
+#: src/picker.js:1311
+msgid "Sign out of Steam?"
+msgstr "登出 Steam？"
+
+#: src/picker.js:1312
+msgid ""
+"The saved sign-in is removed. Downloading the scene assets again asks for "
+"the password."
+msgstr "將移除已儲存的登入資訊，再次下載場景素材時需重新輸入密碼。"
+
+#: src/picker.js:1322
+msgid "Could not sign out of Steam"
+msgstr "無法登出 Steam"
+
+#: src/picker.js:1330
+msgid "Other wallpaper folders"
+msgstr "其他桌布資料夾"
+
+#: src/picker.js:1331
+msgid ""
+"Each sub-folder is one wallpaper (with a project.json). Steam libraries are "
+"found automatically."
+msgstr ""
+"資料夾內每個子資料夾是一張桌布（含 project.json）。Steam 收藏庫會自動找到，不"
+"必加入。"
+
+#: src/picker.js:1335
+msgid "Add folder"
+msgstr "加入資料夾"
+
+#: src/picker.js:1337
+msgid "Choose a wallpaper folder"
+msgstr "選擇桌布資料夾"
+
+#: src/picker.js:1358
+msgid "Remove"
+msgstr "移除"

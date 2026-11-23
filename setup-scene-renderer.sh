@@ -8,7 +8,7 @@
 # directory instead of being installed: installing them system-wide would
 # replace libjack-jackd2 (including the i386 build Steam uses) with libjack0.
 #
-# Everything ends up under ~/.local/share/gnome-paper-engine; delete that
+# Everything ends up under ~/.local/share/nekoland-paper-engine; delete that
 # directory to uninstall. Re-run this script after a distribution upgrade.
 
 set -euo pipefail
@@ -24,8 +24,8 @@ BUILD_DEPENDENCIES=(
 
 # Resolved through symlinks: the .deb installs this script as a link in /usr/bin.
 SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
-PREFIX="${XDG_DATA_HOME:-$HOME/.local/share}/gnome-paper-engine"
-BUILD_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/gnome-paper-engine"
+PREFIX="${XDG_DATA_HOME:-$HOME/.local/share}/nekoland-paper-engine"
+BUILD_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/nekoland-paper-engine"
 SYSROOT="$PREFIX/sysroot"
 MULTIARCH="$(gcc -print-multiarch)"
 SYSROOT_LIBDIR="$SYSROOT/usr/lib/$MULTIARCH"
@@ -67,7 +67,7 @@ fi
 git -C "$SOURCE_DIR" fetch origin
 git -C "$SOURCE_DIR" checkout --force --detach "$LWE_COMMIT"
 git -C "$SOURCE_DIR" submodule update --init --recursive
-# Fixes: puppet-warp layers (animated characters), pointer position from the extension, parallax smoothing.
+# Fixes: puppet-warp layers (animated characters), parallax smoothing.
 git -C "$SOURCE_DIR" apply "$SCRIPT_DIR"/patches/*.patch
 
 echo "==> Building (this downloads the Chromium Embedded Framework and takes a while)"
@@ -87,7 +87,7 @@ cmake --install "$SOURCE_DIR/build"
 # The picker compares this with the patches it ships to tell when the renderer needs rebuilding.
 cat "$SCRIPT_DIR"/patches/*.patch | sha256sum | cut -d' ' -f1 > "$PREFIX/linux-wallpaperengine/patches.sha256"
 
-# The extension looks for this launcher; it points the binary at the private libraries.
+# The daemon looks for this launcher; it points the binary at the private libraries.
 mkdir -p "$PREFIX/bin"
 cat > "$PREFIX/bin/linux-wallpaperengine" <<EOF
 #!/bin/sh

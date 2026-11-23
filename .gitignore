@@ -1,3 +1,2 @@
-extension/schemas/gschemas.compiled
-extension/locale/
-dist/
+src/schemas/gschemas.compiled
+src/locale/

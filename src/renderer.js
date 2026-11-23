@@ -2,24 +2,26 @@
 //
 // Renderer for "video" and "web" Wallpaper Engine projects.
 //
-// Runs as a separate process (GTK 3 + WebKitGTK, both part of a stock Ubuntu
-// install) and opens one undecorated window per monitor. The shell extension
-// turns those windows into desktop-layer windows and talks to this process
+// Runs as a separate process (GTK 3 + WebKitGTK) and opens one wlr-layer-shell
+// surface per display, under the windows, through gtk-layer-shell, which must
+// be loaded before libwayland-client (LD_PRELOAD). Nekoland hands those
+// surfaces the pointer where nothing else is. The daemon talks to this process
 // over stdin, one command per line: pause | play | mute 0|1 | volume 0-100 |
-// mouse INDEX X Y BUTTON.
+// still DISPLAY PATH.
 
 import Gdk from 'gi://Gdk?version=3.0';
 import Gio from 'gi://Gio';
 import GioUnix from 'gi://GioUnix';
 import GLib from 'gi://GLib';
+import GtkLayerShell from 'gi://GtkLayerShell?version=0.1';
 import Gst from 'gi://Gst';
 import Gtk from 'gi://Gtk?version=3.0';
 import WebKit from 'gi://WebKit2?version=4.1';
 
-// Must match RENDERER_TITLE_PREFIX in extension.js.
-const TITLE_PREFIX = 'gnome-paper-engine-renderer-';
-// The name of this program's sound streams; must match OWN_STREAM_NAMES in extension.js.
-const PROGRAM_NAME = 'gnome-paper-engine-renderer';
+// The name of this program's sound streams; must match OWN_STREAM_NAMES in daemon.js.
+const PROGRAM_NAME = 'nekoland-paper-engine-renderer';
+// Nekoland draws its bottom layer over its background layer, where its own wallpaper (swaybg) is.
+const LAYER_NAMESPACE = 'nekoland-paper-engine';
 
 const FIT_TO_OBJECT_FIT = {cover: 'cover', contain: 'contain', fill: 'fill'};
 
@@ -58,7 +60,7 @@ window.wallpaperRequestRandomFileForProperty = () => {};
 function parseArgs(argv) {
     const options = {
         type: '', file: '', fit: 'cover', fps: 30, muted: false, volume: 100,
-        monitors: '0', properties: '{}',
+        outputs: '[]', properties: '{}',
     };
     for (let i = 0; i < argv.length; i++) {
         const name = argv[i].replace(/^--/, '');
@@ -69,12 +71,12 @@ function parseArgs(argv) {
         else
             throw new Error(`Unknown argument: ${argv[i]}`);
     }
-    // Indices of the monitors to open a window for, e.g. "0,2".
-    options.monitors = options.monitors.split(',').map(Number);
+    // The displays to open a surface on, as [{name, x, y}], their place in points.
+    options.outputs = JSON.parse(options.outputs);
     options.volume = Number(options.volume);
     options.fps = Number(options.fps);
     if (!['video', 'web'].includes(options.type) || !options.file)
-        throw new Error('Usage: renderer.js --type video|web --file PATH [--fit MODE] [--fps N] [--muted] [--volume N] [--monitors I,J,…] [--properties JSON]');
+        throw new Error('Usage: renderer.js --type video|web --file PATH [--fit MODE] [--fps N] [--muted] [--volume N] [--outputs JSON] [--properties JSON]');
     return options;
 }
 
@@ -100,7 +102,7 @@ function compileFolderFilter(folder) {
         {trigger: {'url-filter': `^${folderUri}/`, 'url-filter-is-case-sensitive': true}, action: {type: 'ignore-previous-rules'}},
     ];
     const store = new WebKit.UserContentFilterStore({
-        path: GLib.build_filenamev([GLib.get_user_cache_dir(), 'gnome-paper-engine', 'content-filters']),
+        path: GLib.build_filenamev([GLib.get_user_cache_dir(), 'nekoland-paper-engine', 'content-filters']),
     });
     return new Promise((resolve, reject) => {
         // One filter per folder: several renderers may be compiling theirs at once.
@@ -122,16 +124,14 @@ class Renderer {
         this._options = options;
         this._folderFilter = folderFilter;
         this._paused = false;
-        // Monitor index → WebView.
+        // Display name → WebView.
         this._views = new Map();
-        // Per window: whether the forwarded pointer has its button pressed.
-        this._buttonDown = [];
-        for (const index of options.monitors)
-            this._views.set(index, this._createWindow(index));
+        for (const output of options.outputs)
+            this._views.set(output.name, this._createWindow(output));
         this._readCommands();
     }
 
-    _createWindow(index) {
+    _createWindow(output) {
         const {type, file, fit, muted} = this._options;
 
         const contentManager = new WebKit.UserContentManager();
@@ -165,7 +165,7 @@ class Renderer {
                 this._onLoaded(view);
         });
         view.connect('web-process-terminated', () => {
-            // Exit non-zero so the extension relaunches us.
+            // Exit non-zero so the daemon relaunches us.
             printerr('Web process terminated');
             imports.system.exit(1);
         });
@@ -178,12 +178,22 @@ class Renderer {
             view.load_uri(Gio.File.new_for_path(file).get_uri());
         }
 
-        const window = new Gtk.Window({
-            title: `${TITLE_PREFIX}${index}`,
-            decorated: false,
-            default_width: 1280,
-            default_height: 720,
-        });
+        const window = new Gtk.Window({title: PROGRAM_NAME, decorated: false});
+        GtkLayerShell.init_for_window(window);
+        GtkLayerShell.set_namespace(window, LAYER_NAMESPACE);
+        GtkLayerShell.set_layer(window, GtkLayerShell.Layer.BOTTOM);
+        // GDK 3 does not know the displays' names, so they are told apart by where they are.
+        const display = Gdk.Display.get_default();
+        for (let i = 0; i < display.get_n_monitors(); i++) {
+            const geometry = display.get_monitor(i).get_geometry();
+            if (geometry.x === output.x && geometry.y === output.y)
+                GtkLayerShell.set_monitor(window, display.get_monitor(i));
+        }
+        for (const edge of [GtkLayerShell.Edge.LEFT, GtkLayerShell.Edge.RIGHT, GtkLayerShell.Edge.TOP, GtkLayerShell.Edge.BOTTOM])
+            GtkLayerShell.set_anchor(window, edge, true);
+        // Under the menu bar and the Dock too, rather than beside them.
+        GtkLayerShell.set_exclusive_zone(window, -1);
+        GtkLayerShell.set_keyboard_mode(window, GtkLayerShell.KeyboardMode.NONE);
         window.add(view);
         window.connect('destroy', () => Gtk.main_quit());
         window.show_all();
@@ -263,32 +273,23 @@ class Renderer {
         }
     }
 
+    _saveStill(view, path) {
+        view?.get_snapshot(WebKit.SnapshotRegion.VISIBLE, WebKit.SnapshotOptions.NONE, null, (_view, result) => {
+            try {
+                view.get_snapshot_finish(result).writeToPNG(path);
+            } catch (e) {
+                printerr(`No still of the wallpaper: ${e.message}`);
+            }
+        });
+    }
+
     _handleCommand(line) {
         const [command, argument, ...rest] = line.trim().split(' ');
         switch (command) {
-        case 'mouse': {
-            // mouse <window index> <x> <y> <button down>, position as fractions of the window.
-            const index = Number(argument);
-            const view = this._views.get(index);
-            if (view) {
-                const down = rest[2] === '1';
-                const events = ['mousemove'];
-                if (down !== Boolean(this._buttonDown[index]))
-                    events.push(...down ? ['mousedown'] : ['mouseup', 'click']);
-                this._buttonDown[index] = down;
-                this._runJs(view, `{
-                    const x = ${Number(rest[0])} * innerWidth, y = ${Number(rest[1])} * innerHeight;
-                    const target = document.elementFromPoint(x, y) ?? document;
-                    for (const type of ${JSON.stringify(events)}) {
-                        target.dispatchEvent(new MouseEvent(type, {
-                            clientX: x, clientY: y, screenX: x, screenY: y, button: 0,
-                            buttons: ${down ? 1 : 0}, bubbles: true, cancelable: true, view: window,
-                        }));
-                    }
-                }`);
-            }
+        case 'still':
+            // still <display> <path>: a PNG of what that display shows.
+            this._saveStill(this._views.get(argument), rest.join(' '));
             break;
-        }
         case 'pause':
             this._setPaused(true);
             break;
@@ -319,7 +320,7 @@ class Renderer {
             stdin.read_line_async(GLib.PRIORITY_DEFAULT, null, (_stream, result) => {
                 const [line] = stdin.read_line_finish_utf8(result);
                 if (line === null) {
-                    // The extension went away (shell exit or crash); don't linger.
+                    // The daemon went away; don't linger.
                     Gtk.main_quit();
                     return;
                 }

@@ -13,17 +13,15 @@ import Gtk from 'gi://Gtk';
 import Pango from 'gi://Pango';
 import System from 'system';
 
-import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
-
 import {
     listProjects, loadProject, resolveProperties, findSceneRenderer, isSceneRendererOutdated, findAssetsDir,
-    findWorkshopDirs, isSceneSupported, format, blurMyShellSettings, BLUR_MY_SHELL_COMPONENTS,
-    listGpus,
+    findWorkshopDirs, isSceneSupported, format, listGpus, getSettings, gettext as _, APP_DIR, CACHE_DIR,
 } from './library.js';
 import {evaluateCondition} from './conditions.js';
 import {downloadSceneAssets, savedAccount, signOut} from './sceneAssets.js';
 import * as Workshop from './workshop.js';
 
+const APPLICATION_ID = 'io.github.koukeneko.Nekoland.PaperEngine';
 const SUPPORTED_TYPES = ['video', 'web', 'scene'];
 const PREVIEW_SIZE = 168;
 // Cards are built in batches so decoding previews never freezes the window.
@@ -51,7 +49,7 @@ const LANGUAGE_LABELS = {'': N_('System default'), en: 'English', zh_TW: '繁體
 const ACTION_LABELS = {keep: N_('Keep running'), mute: N_('Mute'), pause: N_('Pause'), stop: N_('Stop (free memory)')};
 // [setting, title] of each playback rule, in the order Wallpaper Engine lists them.
 const PLAYBACK_RULES = [
-    ['when-focused', N_('Other app focused')],
+    ['when-focused', N_('Window on screen')],
     ['when-maximized', N_('Window maximized')],
     ['when-fullscreen', N_('Window fullscreen')],
     ['when-audio', N_('Other app playing audio')],
@@ -200,9 +198,8 @@ class WallpaperCard extends Gtk.FlowBoxChild {
 });
 
 class Picker {
-    constructor(window, settings, extensionPath) {
+    constructor(window, settings) {
         this._window = window;
-        this._extensionPath = extensionPath;
         this._settings = settings;
         this._view = 'all';
         this._projects = [];
@@ -378,7 +375,7 @@ class Picker {
         });
         this._updateNotice.connect('button-clicked', () => this._restart());
         try {
-            const monitor = Gio.File.new_for_path(this._extensionPath)
+            const monitor = Gio.File.new_for_path(APP_DIR)
                 .monitor_directory(Gio.FileMonitorFlags.WATCH_MOVES, null);
             monitor.connect('changed', (_monitor, file) => {
                 if (file.get_basename().endsWith('.js'))
@@ -386,7 +383,7 @@ class Picker {
             });
             this._monitors.push(monitor);
         } catch (e) {
-            console.warn(`Cannot watch ${this._extensionPath}: ${e.message}`);
+            console.warn(`Cannot watch ${APP_DIR}: ${e.message}`);
         }
 
         this._sceneNotice = new Adw.Banner();
@@ -546,9 +543,8 @@ class Picker {
     // Ends the process that hosts this window, which is the only way to load
     // the new code, and opens the picker again once it is gone.
     _restart() {
-        const uuid = GLib.path_get_basename(this._extensionPath);
-        GLib.spawn_command_line_async(
-            `sh -c ${GLib.shell_quote(`sleep 1; exec gnome-extensions prefs ${GLib.shell_quote(uuid)}`)}`);
+        const picker = GLib.shell_quote(GLib.build_filenamev([APP_DIR, 'picker.js']));
+        GLib.spawn_command_line_async(`sh -c ${GLib.shell_quote(`sleep 1; exec gjs -m ${picker}`)}`);
         this._destroy();
         System.exit(0);
     }
@@ -577,23 +573,18 @@ class Picker {
         dialog.present(this._window);
     }
 
-    // The setup script that ships with the extension: next to it from the
-    // source folder, behind a link in PATH from the package.
+    // The setup script, with its patches beside it: next to this program where
+    // install.sh put it, a folder up in the source folder.
     _setupScript() {
-        const bundled = GLib.build_filenamev([this._extensionPath, 'setup-scene-renderer.sh']);
-        if (GLib.file_test(bundled, GLib.FileTest.IS_EXECUTABLE))
-            return bundled;
-        const link = GLib.find_program_in_path('gnome-paper-engine-setup-scene');
-        if (!link || !GLib.file_test(link, GLib.FileTest.IS_SYMLINK))
-            return link;
-        // Its patches are next to where the link points.
-        return GLib.canonicalize_filename(GLib.file_read_link(link), GLib.path_get_dirname(link));
+        return [APP_DIR, GLib.path_get_dirname(APP_DIR)]
+            .map(dir => GLib.build_filenamev([dir, 'setup-scene-renderer.sh']))
+            .find(script => GLib.file_test(script, GLib.FileTest.IS_EXECUTABLE)) ?? null;
     }
 
     // Runs the setup script; what it prints goes to a log that is offered when it fails.
     _installRenderer() {
         const script = this._setupScript();
-        const logDir = GLib.build_filenamev([GLib.get_user_cache_dir(), 'gnome-paper-engine']);
+        const logDir = CACHE_DIR;
         const log = GLib.build_filenamev([logDir, 'setup-scene-renderer.log']);
         const fail = () => {
             this._installingRenderer = false;
@@ -693,7 +684,7 @@ class Picker {
     }
 
     async _downloadAssets(account) {
-        const log = GLib.build_filenamev([GLib.get_user_cache_dir(), 'gnome-paper-engine', 'download-scene-assets.log']);
+        const log = GLib.build_filenamev([CACHE_DIR, 'download-scene-assets.log']);
         const statusTitles = {
             'steamcmd': _('Installing SteamCMD'),
             'signing-in': _('Signing in to Steam'),
@@ -1242,20 +1233,9 @@ class Picker {
 
         playback.add(createChoiceRow(settings, 'fit', _('Scaling'), FIT_LABELS));
 
-        const sharingRow = new Adw.SwitchRow({title: _('Pause while the screen is shared')});
-        settings.bind('pause-while-sharing', sharingRow, 'active', Gio.SettingsBindFlags.DEFAULT);
-        playback.add(sharingRow);
-
-        const lockScreenRow = new Adw.SwitchRow({
-            title: _('Show on the lock screen'),
-            subtitle: _('When off, playback pauses while the screen is locked'),
-        });
-        settings.bind('show-on-lock-screen', lockScreenRow, 'active', Gio.SettingsBindFlags.DEFAULT);
-        playback.add(lockScreenRow);
-
         const systemBackgroundRow = new Adw.SwitchRow({
-            title: _('Still image as desktop background'),
-            subtitle: _('Shown while the live wallpaper is not running'),
+            title: _('Still image as Nekoland wallpaper'),
+            subtitle: _('Shown on the lock screen, in the overview, and while the live wallpaper is not running'),
         });
         settings.bind('system-background', systemBackgroundRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         playback.add(systemBackgroundRow);
@@ -1285,18 +1265,6 @@ class Picker {
                 selected: Math.max(0, names.indexOf(settings.get_string('gpu'))),
             });
             gpuRow.connect('notify::selected', () => settings.set_string('gpu', names[gpuRow.selected]));
-            // The extension goes back to the default when the chosen card shows nothing.
-            this._settingsIds.push(settings.connect('changed::gpu', () => {
-                const name = settings.get_string('gpu');
-                if (name === names[gpuRow.selected])
-                    return;
-                gpuRow.selected = Math.max(0, names.indexOf(name));
-                if (!name) {
-                    this._toastOverlay.add_toast(new Adw.Toast({
-                        title: _('The wallpaper did not appear on the chosen graphics card; using the system default.'),
-                    }));
-                }
-            }));
             quality.add(gpuRow);
         }).catch(e => console.warn(`Cannot list the GPUs: ${e.message}`));
 
@@ -1319,23 +1287,6 @@ class Picker {
         const shuffleRow = new Adw.SwitchRow({title: _('Shuffle')});
         settings.bind('rotation-shuffle', shuffleRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         rotation.add(shuffleRow);
-
-        // Blur my Shell blurs the Dock and the top bar either from the wallpaper
-        // alone or from everything behind them; with a live wallpaper the
-        // difference shows, so its two switches are offered here as well.
-        const blurTitles = {'dash-to-dock': _('Windows behind the Dock'), 'panel': _('Windows behind the top bar')};
-        const blurRows = BLUR_MY_SHELL_COMPONENTS
-            .map(component => [blurMyShellSettings(component), blurTitles[component]])
-            .filter(([blurSettings]) => blurSettings);
-        if (blurRows.length > 0) {
-            const blur = new Adw.PreferencesGroup({title: 'Blur my Shell'});
-            page.add(blur);
-            for (const [blurSettings, title] of blurRows) {
-                const row = new Adw.SwitchRow({title});
-                blurSettings.bind('static-blur', row, 'active', Gio.SettingsBindFlags.INVERT_BOOLEAN);
-                blur.add(row);
-            }
-        }
 
         const appearance = new Adw.PreferencesGroup({title: _('Interface')});
         page.add(appearance);
@@ -1418,18 +1369,24 @@ class Picker {
     }
 }
 
-export default class PaperEnginePreferences extends ExtensionPreferences {
-    fillPreferencesWindow(window) {
-        const settings = this.getSettings();
-        // gettext consults LANGUAGE on every lookup, so this has to happen before any text is built.
-        const language = settings.get_string('language');
-        if (language)
-            GLib.setenv('LANGUAGE', language, true);
-
-        window.set_title('Paper Engine');
-        // Wide enough for four columns of wallpapers between the two side panes.
-        window.set_default_size(1440, 900);
-        window.set_search_enabled(false);
-        new Picker(window, settings, this.path);
+const application = new Adw.Application({application_id: APPLICATION_ID});
+application.connect('activate', () => {
+    if (application.active_window) {
+        application.active_window.present();
+        return;
     }
-}
+    // The wallpaper plays from the daemon, which exits at once if it runs already.
+    GLib.spawn_async(null, ['gjs', '-m', GLib.build_filenamev([APP_DIR, 'daemon.js'])], null,
+        GLib.SpawnFlags.SEARCH_PATH, null);
+    const settings = getSettings();
+    // gettext consults LANGUAGE on every lookup, so this has to happen before any text is built.
+    const language = settings.get_string('language');
+    if (language)
+        GLib.setenv('LANGUAGE', language, true);
+
+    // Wide enough for four columns of wallpapers between the two side panes.
+    const window = new Adw.ApplicationWindow({application, title: 'Paper Engine', default_width: 1440, default_height: 900});
+    new Picker(window, settings);
+    window.present();
+});
+application.run([System.programInvocationName]);

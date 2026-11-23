@@ -12,10 +12,10 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Soup from 'gi://Soup?version=3.0';
 
-import {LOCAL_ASSETS_DIR, WALLPAPER_ENGINE_APP_ID} from './library.js';
+import {DATA_DIR, LOCAL_ASSETS_DIR, WALLPAPER_ENGINE_APP_ID} from './library.js';
 
 const STEAMCMD_URL = 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz';
-const STEAMCMD_DIR = GLib.build_filenamev([GLib.get_user_data_dir(), 'gnome-paper-engine', 'steamcmd']);
+const STEAMCMD_DIR = GLib.build_filenamev([DATA_DIR, 'steamcmd']);
 const STEAMCMD_SCRIPT = GLib.build_filenamev([STEAMCMD_DIR, 'steamcmd.sh']);
 // Wallpaper Engine's Windows content depot, about 800 MB; the assets are about 100 MB of it.
 const CONTENT_DEPOT_ID = '431961';

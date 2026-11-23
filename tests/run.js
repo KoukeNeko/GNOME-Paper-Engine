@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Tests for the parsers that read content from outside: option conditions
-// from wallpapers, the Workshop browse page and SteamCMD's output; and for
-// telling when the scene renderer needs rebuilding. Run with `gjs -m tests/run.js`.
+// from wallpapers, the Workshop browse page, SteamCMD's output, Nekoland's
+// answers and PipeWire's streams; and for telling when the scene renderer needs rebuilding. Run with `gjs -m tests/run.js`.
 
 import GLib from 'gi://GLib';
 import System from 'system';
 
 // Keep the Workshop module's HTTP cache and the scene renderer files out of the user's own.
-GLib.setenv('XDG_CACHE_HOME', GLib.dir_make_tmp('gnome-paper-engine-tests-XXXXXX'), true);
-GLib.setenv('XDG_DATA_HOME', GLib.dir_make_tmp('gnome-paper-engine-tests-XXXXXX'), true);
+GLib.setenv('XDG_CACHE_HOME', GLib.dir_make_tmp('nekoland-paper-engine-tests-XXXXXX'), true);
+GLib.setenv('XDG_DATA_HOME', GLib.dir_make_tmp('nekoland-paper-engine-tests-XXXXXX'), true);
 
-const {evaluateCondition} = await import('../extension/conditions.js');
-const {parseBrowsePage} = await import('../extension/workshop.js');
-const {readSteamCmdLine, readSavedAccounts} = await import('../extension/sceneAssets.js');
-const {isSceneRendererOutdated} = await import('../extension/library.js');
+const {evaluateCondition} = await import('../src/conditions.js');
+const {parseBrowsePage} = await import('../src/workshop.js');
+const {readSteamCmdLine, readSavedAccounts} = await import('../src/sceneAssets.js');
+const {isSceneRendererOutdated} = await import('../src/library.js');
 
 let failures = 0;
 function check(name, actual, expected) {
@@ -107,7 +107,7 @@ check('no saved account', readSavedAccounts('"InstallConfigStore" { "Software" {
 // The setup script records the checksum of the patches it built with; the
 // picker must hash the patches the same way to tell they are unchanged.
 const setupScript = GLib.build_filenamev([GLib.get_current_dir(), 'setup-scene-renderer.sh']);
-const prefix = GLib.build_filenamev([GLib.get_user_data_dir(), 'gnome-paper-engine']);
+const prefix = GLib.build_filenamev([GLib.get_user_data_dir(), 'nekoland-paper-engine']);
 GLib.mkdir_with_parents(`${prefix}/bin`, 0o755);
 GLib.mkdir_with_parents(`${prefix}/linux-wallpaperengine`, 0o755);
 GLib.file_set_contents(`${prefix}/bin/linux-wallpaperengine`, '#!/bin/sh\n');
@@ -122,12 +122,43 @@ check('renderer built with other patches is outdated', isSceneRendererOutdated('
 check('renderer built elsewhere is never outdated', isSceneRendererOutdated('/bin/true', setupScript), false);
 
 // Rendering on a chosen GPU needs the matching EGL vendor file on top of what the system lists.
-const {gpuEnvironment} = await import('../extension/library.js');
+const {gpuEnvironment} = await import('../src/library.js');
 check('intel gpu environment', gpuEnvironment(['DRI_PRIME', 'pci-0000_00_02_0'], () => true),
     {DRI_PRIME: 'pci-0000_00_02_0', __EGL_VENDOR_LIBRARY_FILENAMES: '/usr/share/glvnd/egl_vendor.d/50_mesa.json'});
 check('nvidia gpu environment', gpuEnvironment(['__NV_PRIME_RENDER_OFFLOAD', '1'], () => true),
     {__NV_PRIME_RENDER_OFFLOAD: '1', __EGL_VENDOR_LIBRARY_FILENAMES: '/usr/share/glvnd/egl_vendor.d/10_nvidia.json'});
 check('gpu environment without vendor files', gpuEnvironment(['DRI_PRIME', '1'], () => false), {DRI_PRIME: '1'});
+
+const {parseDisplays, parseWindowAreas, isEveryDisplayCovered, parseConfigWallpaper, isOtherAudioPlaying} =
+    await import('../src/session.js');
+const displays = parseDisplays('HDMI-A-1\t2560x1440\t0\t0\ton\nDP-2\t1920x1080\t2560\t0\ton\nDP-3\t1920x1080\t0\t0\toff\n');
+check('displays that are on', displays, [
+    {name: 'HDMI-A-1', x: 0, y: 0, width: 2560, height: 1440},
+    {name: 'DP-2', x: 2560, y: 0, width: 1920, height: 1080},
+]);
+const windows = parseWindowAreas('0 0 2560 1440\tA video\tplayer\n2560 30 1920 980\tEditor\n');
+check('window areas', windows[0], {x: 0, y: 0, width: 2560, height: 1440, title: 'A video\tplayer'});
+check('every display covered fully', isEveryDisplayCovered(displays, windows, 1), false);
+check('every display covered mostly', isEveryDisplayCovered(displays, windows, 0.8), true);
+check('one display left bare', isEveryDisplayCovered(displays, windows.slice(0, 1), 0.8), false);
+check('no displays are not covered', isEveryDisplayCovered([], windows, 0.8), false);
+check('config wallpaper', parseConfigWallpaper('mode = "x"\nwallpaper = "/home/a \\"b\\"/c.png"\nscale = 1.5\n'), '/home/a "b"/c.png');
+check('config without wallpaper', parseConfigWallpaper('lock_wallpaper = "/x.png"\n'), '');
+
+const stream = (pid, name, state = 'running', mute = false) => ({
+    type: 'PipeWire:Interface:Node',
+    info: {
+        state, params: {Props: [{mute}]},
+        props: {'media.class': 'Stream/Output/Audio', 'application.process.id': pid, 'application.name': name},
+    },
+});
+const own = [[42], ['nekoland-paper-engine-renderer']];
+check('another stream plays', isOtherAudioPlaying([stream(7, 'Firefox')], ...own), true);
+check('an idle stream is quiet', isOtherAudioPlaying([stream(7, 'Firefox', 'idle')], ...own), false);
+check('a muted stream is quiet', isOtherAudioPlaying([stream(7, 'Firefox', 'running', true)], ...own), false);
+check('own streams do not count', isOtherAudioPlaying([stream(42, 'x'), stream(8, 'nekoland-paper-engine-renderer')], ...own), false);
+check('a recording is not playing', isOtherAudioPlaying([{type: 'PipeWire:Interface:Node',
+    info: {state: 'running', props: {'media.class': 'Stream/Input/Audio'}}}], ...own), false);
 
 if (failures > 0)
     System.exit(1);

@@ -1,10 +1,29 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Locating and reading Wallpaper Engine projects. Shared by the shell
-// extension and the preferences window, so it only depends on GLib/Gio.
+// Locating and reading Wallpaper Engine projects. Shared by the daemon and
+// the picker, so it only depends on GLib/Gio.
 
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import Gettext from 'gettext';
+
+// The folder this program runs from: its schemas, translations, setup script and patches are next to it.
+export const APP_DIR = GLib.path_get_dirname(GLib.filename_from_uri(import.meta.url)[0]);
+// The folder of what is made or downloaded per user: the scene renderer, assets, SteamCMD and the still.
+export const DATA_DIR = GLib.build_filenamev([GLib.get_user_data_dir(), 'nekoland-paper-engine']);
+export const CACHE_DIR = GLib.build_filenamev([GLib.get_user_cache_dir(), 'nekoland-paper-engine']);
+const SCHEMA_ID = 'io.github.koukeneko.Nekoland.PaperEngine';
+const GETTEXT_DOMAIN = 'nekoland-paper-engine';
+
+Gettext.bindtextdomain(GETTEXT_DOMAIN, GLib.build_filenamev([APP_DIR, 'locale']));
+export const gettext = Gettext.domain(GETTEXT_DOMAIN).gettext;
+
+/** The settings, from the schema compiled next to this program by install.sh. */
+export function getSettings() {
+    const source = Gio.SettingsSchemaSource.new_from_directory(
+        GLib.build_filenamev([APP_DIR, 'schemas']), Gio.SettingsSchemaSource.get_default(), false);
+    return new Gio.Settings({settings_schema: source.lookup(SCHEMA_ID, false)});
+}
 
 export const WALLPAPER_ENGINE_APP_ID = '431960';
 
@@ -18,35 +37,12 @@ const STEAM_ROOTS = [
 
 // Where setup-scene-renderer.sh installs linux-wallpaperengine.
 const LOCAL_SCENE_RENDERER = GLib.build_filenamev(
-    [GLib.get_user_data_dir(), 'gnome-paper-engine', 'bin', 'linux-wallpaperengine']);
+    [DATA_DIR, 'bin', 'linux-wallpaperengine']);
 // The checksum of the patches that renderer was built with, written by the setup script.
 const LOCAL_SCENE_RENDERER_PATCHES = GLib.build_filenamev(
-    [GLib.get_user_data_dir(), 'gnome-paper-engine', 'linux-wallpaperengine', 'patches.sha256']);
+    [DATA_DIR, 'linux-wallpaperengine', 'patches.sha256']);
 // Where the picker installs the scene assets it downloads with SteamCMD.
-export const LOCAL_ASSETS_DIR = GLib.build_filenamev([GLib.get_user_data_dir(), 'gnome-paper-engine', 'assets']);
-
-const BLUR_MY_SHELL_SCHEMA = 'org.gnome.shell.extensions.blur-my-shell';
-const BLUR_MY_SHELL_SCHEMA_DIRS = [
-    GLib.build_filenamev([GLib.get_user_data_dir(), 'gnome-shell/extensions/blur-my-shell@aunetx/schemas']),
-    '/usr/share/gnome-shell/extensions/blur-my-shell@aunetx/schemas',
-];
-// Blur my Shell components whose blur can include the windows behind them.
-export const BLUR_MY_SHELL_COMPONENTS = ['dash-to-dock', 'panel'];
-
-/**
- * Blur my Shell's settings for one of BLUR_MY_SHELL_COMPONENTS, or null when
- * Blur my Shell is not installed or the component has no `static-blur` key.
- * A static blur is the one that leaves the windows out.
- */
-export function blurMyShellSettings(component) {
-    const dir = BLUR_MY_SHELL_SCHEMA_DIRS.find(candidate =>
-        GLib.file_test(GLib.build_filenamev([candidate, 'gschemas.compiled']), GLib.FileTest.EXISTS));
-    if (!dir)
-        return null;
-    const schema = Gio.SettingsSchemaSource.new_from_directory(dir, null, false)
-        .lookup(`${BLUR_MY_SHELL_SCHEMA}.${component}`, false);
-    return schema?.has_key('static-blur') ? new Gio.Settings({settings_schema: schema}) : null;
-}
+export const LOCAL_ASSETS_DIR = GLib.build_filenamev([DATA_DIR, 'assets']);
 
 /** Fills the %s placeholders of a translated string, in order. */
 export function format(template, ...values) {
@@ -277,7 +273,7 @@ export function findSceneRenderer(configuredPath) {
 /**
  * Whether the scene renderer built by the setup script at `setupScript` was
  * built with other patches than the ones next to that script, so it lacks
- * what the extension now asks of it. Renderers built some other way are
+ * what the daemon now asks of it. Renderers built some other way are
  * never reported.
  */
 export function isSceneRendererOutdated(configuredPath, setupScript) {
