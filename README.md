@@ -28,7 +28,7 @@ from your own Steam library; nothing is bundled here.
 ## Requirements
 
 - Nekoland, on Ubuntu (developed on Ubuntu 26.10).
-- Steam, with Wallpaper Engine owned.
+- A Steam account that owns Wallpaper Engine. The Steam client is not needed.
 
 `install.sh` installs what it runs with when missing, with `sudo apt-get`:
 GJS, WebKitGTK, libadwaita and gtk-layer-shell's bindings, GStreamer's
@@ -50,13 +50,24 @@ to `autostart` in `~/.config/nekoland/config.toml` instead.
 
 ### Getting wallpapers
 
-1. In Steam, enable *Settings → Compatibility → Enable Steam Play for all other
-   titles*, then install Wallpaper Engine (it is a Windows application; it only
-   has to be installed, not run).
-2. Subscribe to wallpapers in the
-   [Workshop](https://steamcommunity.com/app/431960/workshop/). Steam downloads
-   them to `steamapps/workshop/content/431960`, which the picker scans, along
-   with the projects that ship with Wallpaper Engine.
+Like Wallpaper Engine, the picker keeps the library in step with the Steam
+account's Workshop subscriptions; the Steam client is not needed.
+
+1. Press **Sign in to Steam** (in the Workshop, or under *Playback and
+   performance → Steam account*). Steam's own sign-in page opens in a window,
+   so the password only goes to Steam; the session it sets is kept in the
+   keyring and sent only to steamcommunity.com.
+2. Subscribe to wallpapers with **Subscribe** in the picker's Workshop, or
+   anywhere else on Steam. Each time the picker opens it reads the
+   subscriptions, downloads the new ones with SteamCMD into
+   `~/.local/share/nekoland-paper-engine/workshop`, and removes the ones no
+   longer subscribed. **Unsubscribe** does both at once.
+
+Downloads go through SteamCMD's own sign-in, which asks for the account name,
+and the password and Steam Guard code when Steam wants them, the first time.
+
+Wallpapers that a Steam client on the same computer has downloaded are listed
+too.
 
 You can also add your own folders of wallpaper projects under
 *Playback and performance → Other wallpaper folders*.
@@ -112,10 +123,9 @@ Chinese; it follows the system language unless you pick one under
 - **Details** – preview, the apply button, and the options the wallpaper
   exposes (colours, sliders, toggles, …).
 
-Workshop browsing reads Steam's public Workshop page, which is not a stable
-interface and may break when Steam changes it. Subscribing happens in Steam:
-the picker opens the wallpaper's page in the Steam client, and it appears in
-the library once Steam has downloaded it.
+Workshop browsing reads Steam's public Workshop page, and the subscriptions
+the account's own Workshop page, neither of which is a stable interface; they
+may break when Steam changes them.
 
 *Playback and performance → Playback rules* decide what playback does while a
 window is on screen, while every display is covered by a window that fills
@@ -194,7 +204,10 @@ through WirePlumber.
 - `src/library.js` – finds Steam libraries, reads `project.json`, lists the
   graphics cards through switcheroo-control, and loads the settings.
 - `src/workshop.js` – reads the Steam Workshop browse page.
-- `src/sceneAssets.js` – downloads the scene assets with SteamCMD.
+- `src/sceneAssets.js` – downloads the scene assets and Workshop wallpapers
+  with SteamCMD.
+- `src/steamCommunity.js`, `src/steamSignIn.js` – the Steam sign-in, and the
+  subscriptions it reads and changes.
 - `src/conditions.js` – evaluates when a wallpaper option is shown.
 - `install.sh`, `uninstall.sh` – the install and its removal.
 - `setup-scene-renderer.sh`, `patches/` – builds the patched scene renderer.
@@ -209,8 +222,8 @@ through WirePlumber.
 ```
 
 Nekoland's wallpaper goes back to the one the still replaced. The scene
-renderer, any downloaded scene assets and SteamCMD with its saved Steam
-sign-in stay in your home folder. To remove them as well, and the still image:
+renderer, any downloaded scene assets and Workshop wallpapers, and SteamCMD
+with its saved Steam sign-in stay in your home folder. To remove them as well, and the still image:
 
 ```bash
 ./uninstall.sh --all

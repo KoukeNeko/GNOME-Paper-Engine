@@ -375,18 +375,6 @@ msgstr "%s 張"
 msgid "No wallpapers here yet"
 msgstr "這裡還沒有桌布"
 
-#: src/picker.js:745
-msgid ""
-"Install Wallpaper Engine in Steam, then subscribe to wallpapers in the "
-"Workshop; they show up here once Steam has downloaded them."
-msgstr ""
-"在 Steam 安裝 Wallpaper Engine，然後到工作坊訂閱桌布；Steam 下載完成後會出現"
-"在這裡。"
-
-#: src/picker.js:746
-msgid "Install Wallpaper Engine"
-msgstr "安裝 Wallpaper Engine"
-
 #: src/picker.js:748 src/picker.js:766
 msgid "Select a wallpaper to see its details."
 msgstr "選一張桌布來查看詳細資訊。"
@@ -447,21 +435,6 @@ msgstr "停止桌布"
 msgid "Apply wallpaper"
 msgstr "套用桌布"
 
-#: src/picker.js:941
-#, javascript-format
-msgid "Subscribe in Steam (%s)"
-msgstr "在 Steam 訂閱（%s）"
-
-#: src/picker.js:943
-msgid "Opened in Steam: press Subscribe there and it downloads automatically."
-msgstr "已在 Steam 開啟這張桌布，按下「訂閱」後會自動下載。"
-
-#: src/picker.js:945
-msgid ""
-"Subscribing goes through your Steam account; the wallpaper appears in the "
-"library once it is downloaded."
-msgstr "訂閱會透過你的 Steam 帳號進行；下載完成後自動出現在桌布庫。"
-
 #: src/picker.js:961
 #, javascript-format
 msgid "Apply to %s only"
@@ -474,10 +447,6 @@ msgstr "從播放清單移除"
 #: src/picker.js:970
 msgid "Add to playlist"
 msgstr "加入播放清單"
-
-#: src/picker.js:978
-msgid "Open Workshop page in Steam"
-msgstr "在 Steam 開啟工作坊頁面"
 
 #: src/picker.js:983
 msgid "About this wallpaper"
@@ -632,12 +601,6 @@ msgstr "未登入"
 msgid "Sign out of Steam?"
 msgstr "登出 Steam？"
 
-#: src/picker.js:1312
-msgid ""
-"The saved sign-in is removed. Downloading the scene assets again asks for "
-"the password."
-msgstr "將移除已儲存的登入資訊，再次下載場景素材時需重新輸入密碼。"
-
 #: src/picker.js:1322
 msgid "Could not sign out of Steam"
 msgstr "無法登出 Steam"
@@ -665,3 +628,80 @@ msgstr "選擇桌布資料夾"
 #: src/picker.js:1358
 msgid "Remove"
 msgstr "移除"
+
+#: src/picker.js
+msgid "Browse the Workshop"
+msgstr "瀏覽工作坊"
+
+#: src/picker.js
+msgid "Downloading"
+msgstr "正在下載"
+
+#: src/picker.js
+msgid "The wallpaper could not be downloaded"
+msgstr "無法下載桌布"
+
+#: src/picker.js
+msgid "Downloads"
+msgstr "下載"
+
+#: src/picker.js
+msgid "It is also removed from this device."
+msgstr "也會從這部裝置移除。"
+
+#: src/picker.js
+msgid "Open Workshop page"
+msgstr "開啟工作坊頁面"
+
+#: src/picker.js
+msgid "Sign in to Steam"
+msgstr "登入 Steam"
+
+#: src/picker.js
+msgid "Sign in to download"
+msgstr "登入以下載"
+
+#: src/picker.js
+msgid "Signed in"
+msgstr "已登入"
+
+#: src/picker.js
+msgid "Steam did not sign in"
+msgstr "Steam 未完成登入"
+
+#: src/picker.js
+msgid "Steam did not subscribe to this wallpaper"
+msgstr "Steam 未訂閱這張桌布"
+
+#: src/picker.js
+msgid "Steam did not unsubscribe from this wallpaper"
+msgstr "Steam 未取消訂閱這張桌布"
+
+#: src/picker.js
+msgid "Steam ended the sign-in. Sign in again."
+msgstr "Steam 已結束登入，請重新登入。"
+
+#: src/picker.js
+#, javascript-format
+msgid "Subscribe (%s)"
+msgstr "訂閱（%s）"
+
+#: src/picker.js
+msgid "The saved sign-in is removed. Downloading again asks for the password."
+msgstr "將移除已儲存的登入資訊，再次下載時需重新輸入密碼。"
+
+#: src/picker.js
+msgid "The subscriptions could not be read"
+msgstr "無法讀取訂閱項目"
+
+#: src/picker.js
+msgid "Unsubscribe"
+msgstr "取消訂閱"
+
+#: src/picker.js
+msgid "Unsubscribe from this wallpaper?"
+msgstr "取消訂閱這張桌布？"
+
+#: src/picker.js
+msgid "Workshop subscriptions"
+msgstr "工作坊訂閱"

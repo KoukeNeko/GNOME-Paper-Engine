@@ -160,6 +160,32 @@ check('own streams do not count', isOtherAudioPlaying([stream(42, 'x'), stream(8
 check('a recording is not playing', isOtherAudioPlaying([{type: 'PipeWire:Interface:Node',
     info: {state: 'running', props: {'media.class': 'Stream/Input/Audio'}}}], ...own), false);
 
+const {sessionFromCookies, parseSubscriptionsPage, SignInRequired} = await import('../src/steamCommunity.js');
+// A JWT whose payload is {"exp": 2000000000}; its signature is never checked here.
+const token = `x.${GLib.base64_encode(new TextEncoder().encode('{"exp":2000000000}')).replace(/=+$/, '')}.y`;
+check('session from cookies', sessionFromCookies(`76561190000000001%7C%7C${token}`, `76561190000000001%7C%7Crefresh`),
+    {steamID: '76561190000000001', cookie: `76561190000000001%7C%7C${token}`, refreshToken: 'refresh', expiresAt: 2000000000});
+check('renewal token of another account is left out',
+    sessionFromCookies(`76561190000000001||${token}`, '76561190000000002||refresh').refreshToken, null);
+check('not a session cookie', sessionFromCookies('deleted'), null);
+check('subscriptions page', parseSubscriptionsPage(`<title>Steam Community :: Someone :: Subscribed items</title>
+    <div class="workshopBrowsePagingInfo">Showing 1-2 of 31 entries</div>
+    <div class="workshopItemSubscription " id="Subscription111"></div>
+    <div class="workshopItemSubscription " id="Subscription222"></div>`), {ids: ['111', '222'], total: 31});
+check('no subscriptions', parseSubscriptionsPage('<div class="inventory_msg_content">No matching files were found.</div>'),
+    {ids: [], total: 0});
+const subscriptionsFailure = html => {
+    try {
+        parseSubscriptionsPage(html);
+        return 'none';
+    } catch (e) {
+        return e instanceof SignInRequired ? 'sign-in' : 'unreadable';
+    }
+};
+check('sign-in page instead of subscriptions', subscriptionsFailure('<title>Sign In</title>'), 'sign-in');
+check('anonymous page instead of subscriptions', subscriptionsFailure('<script>g_steamID = false;</script>'), 'sign-in');
+check('a blank page is not zero subscriptions', subscriptionsFailure('<html></html>'), 'unreadable');
+
 if (failures > 0)
     System.exit(1);
 print('All tests passed');

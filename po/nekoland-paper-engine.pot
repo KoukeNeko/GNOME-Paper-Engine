@@ -377,16 +377,6 @@ msgstr ""
 msgid "No wallpapers here yet"
 msgstr ""
 
-#: src/picker.js:745
-msgid ""
-"Install Wallpaper Engine in Steam, then subscribe to wallpapers in the "
-"Workshop; they show up here once Steam has downloaded them."
-msgstr ""
-
-#: src/picker.js:746
-msgid "Install Wallpaper Engine"
-msgstr ""
-
 #: src/picker.js:748 src/picker.js:766
 msgid "Select a wallpaper to see its details."
 msgstr ""
@@ -447,21 +437,6 @@ msgstr ""
 msgid "Apply wallpaper"
 msgstr ""
 
-#: src/picker.js:941
-#, javascript-format
-msgid "Subscribe in Steam (%s)"
-msgstr ""
-
-#: src/picker.js:943
-msgid "Opened in Steam: press Subscribe there and it downloads automatically."
-msgstr ""
-
-#: src/picker.js:945
-msgid ""
-"Subscribing goes through your Steam account; the wallpaper appears in the "
-"library once it is downloaded."
-msgstr ""
-
 #: src/picker.js:961
 #, javascript-format
 msgid "Apply to %s only"
@@ -473,10 +448,6 @@ msgstr ""
 
 #: src/picker.js:970
 msgid "Add to playlist"
-msgstr ""
-
-#: src/picker.js:978
-msgid "Open Workshop page in Steam"
 msgstr ""
 
 #: src/picker.js:983
@@ -632,12 +603,6 @@ msgstr ""
 msgid "Sign out of Steam?"
 msgstr ""
 
-#: src/picker.js:1312
-msgid ""
-"The saved sign-in is removed. Downloading the scene assets again asks for "
-"the password."
-msgstr ""
-
 #: src/picker.js:1322
 msgid "Could not sign out of Steam"
 msgstr ""
@@ -662,4 +627,81 @@ msgstr ""
 
 #: src/picker.js:1358
 msgid "Remove"
+msgstr ""
+
+#: src/picker.js
+msgid "Browse the Workshop"
+msgstr ""
+
+#: src/picker.js
+msgid "Downloading"
+msgstr ""
+
+#: src/picker.js
+msgid "The wallpaper could not be downloaded"
+msgstr ""
+
+#: src/picker.js
+msgid "Downloads"
+msgstr ""
+
+#: src/picker.js
+msgid "It is also removed from this device."
+msgstr ""
+
+#: src/picker.js
+msgid "Open Workshop page"
+msgstr ""
+
+#: src/picker.js
+msgid "Sign in to Steam"
+msgstr ""
+
+#: src/picker.js
+msgid "Sign in to download"
+msgstr ""
+
+#: src/picker.js
+msgid "Signed in"
+msgstr ""
+
+#: src/picker.js
+msgid "Steam did not sign in"
+msgstr ""
+
+#: src/picker.js
+msgid "Steam did not subscribe to this wallpaper"
+msgstr ""
+
+#: src/picker.js
+msgid "Steam did not unsubscribe from this wallpaper"
+msgstr ""
+
+#: src/picker.js
+msgid "Steam ended the sign-in. Sign in again."
+msgstr ""
+
+#: src/picker.js
+#, javascript-format
+msgid "Subscribe (%s)"
+msgstr ""
+
+#: src/picker.js
+msgid "The saved sign-in is removed. Downloading again asks for the password."
+msgstr ""
+
+#: src/picker.js
+msgid "The subscriptions could not be read"
+msgstr ""
+
+#: src/picker.js
+msgid "Unsubscribe"
+msgstr ""
+
+#: src/picker.js
+msgid "Unsubscribe from this wallpaper?"
+msgstr ""
+
+#: src/picker.js
+msgid "Workshop subscriptions"
 msgstr ""

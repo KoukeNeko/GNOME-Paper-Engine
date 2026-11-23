@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Downloading the scene assets without installing Wallpaper Engine: SteamCMD
-// fetches the Windows app's content depot and only its `assets` folder is
-// kept. Steam itself checks that the account owns Wallpaper Engine.
+// Downloading without the Steam client or Wallpaper Engine installed: SteamCMD
+// fetches Workshop wallpapers, and the Windows app's content depot, of which
+// only the `assets` folder is kept. Steam itself checks that the account owns
+// Wallpaper Engine.
 //
 // SteamCMD runs with a private HOME, so it never touches the Steam client's
 // files, and under script(1), because its password and Steam Guard prompts
@@ -12,7 +13,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Soup from 'gi://Soup?version=3.0';
 
-import {DATA_DIR, LOCAL_ASSETS_DIR, WALLPAPER_ENGINE_APP_ID} from './library.js';
+import {DATA_DIR, LOCAL_ASSETS_DIR, LOCAL_WORKSHOP_LIBRARY, WALLPAPER_ENGINE_APP_ID} from './library.js';
 
 const STEAMCMD_URL = 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz';
 const STEAMCMD_DIR = GLib.build_filenamev([DATA_DIR, 'steamcmd']);
@@ -156,17 +157,14 @@ async function installSteamCmd(cancellable) {
 }
 
 /**
- * Signs in with SteamCMD and downloads the content depot. `ask(kind)` gets the
- * answer to a 'password' or 'code' prompt, or null to give up. Resolves to
- * the depot folder and the last failure Steam reported.
+ * Runs SteamCMD with `commands`, which sign in. `ask(kind)` gets the answer to
+ * a 'password' or 'code' prompt, or null to give up. Resolves to the depot
+ * folder it reported and the last failure Steam reported.
  */
-async function downloadDepot({account, ask, onStatus, record, cancellable}) {
+async function runSteamCmd({commands, ask, onStatus, record, cancellable}) {
     const home = STEAMCMD_HOME;
     GLib.mkdir_with_parents(home, 0o700);
-    const command = [
-        STEAMCMD_SCRIPT, '+@ShutdownOnFailedCommand', '1', '+@sSteamCmdForcePlatformType', 'windows',
-        '+login', account, '+download_depot', WALLPAPER_ENGINE_APP_ID, CONTENT_DEPOT_ID, '+quit',
-    ].map(argument => GLib.shell_quote(argument)).join(' ');
+    const command = [STEAMCMD_SCRIPT, '+@ShutdownOnFailedCommand', '1', ...commands, '+quit'].map(argument => GLib.shell_quote(argument)).join(' ');
     const launcher = new Gio.SubprocessLauncher({
         flags: Gio.SubprocessFlags.STDIN_PIPE | Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_MERGE,
     });
@@ -235,14 +233,9 @@ async function downloadDepot({account, ask, onStatus, record, cancellable}) {
     return {depotDir, failure};
 }
 
-/**
- * Downloads Wallpaper Engine's content depot as `account` and installs its
- * `assets` folder at LOCAL_ASSETS_DIR. `onStatus` hears 'steamcmd',
- * 'signing-in', 'confirm', 'downloading' and 'installing'. What SteamCMD
- * prints goes to `log`, with the answers to its prompts masked. A failure
- * Steam explained carries it as `reason`.
- */
-export async function downloadSceneAssets({account, ask, onStatus, log, cancellable = null}) {
+// Installs SteamCMD when missing and runs `work(record)`; what SteamCMD prints
+// goes to `log`, with the answers to its prompts masked.
+async function withSteamCmd({onStatus, log, cancellable}, work) {
     const output = [];
     const record = {
         secrets: [],
@@ -256,8 +249,30 @@ export async function downloadSceneAssets({account, ask, onStatus, log, cancella
             onStatus('steamcmd');
             await installSteamCmd(cancellable);
         }
+        return await work(record);
+    } catch (e) {
+        output.push(e.message);
+        throw e;
+    } finally {
+        GLib.mkdir_with_parents(GLib.path_get_dirname(log), 0o755);
+        GLib.file_set_contents(log, `${output.join('\n')}\n`);
+    }
+}
+
+/**
+ * Downloads Wallpaper Engine's content depot as `account` and installs its
+ * `assets` folder at LOCAL_ASSETS_DIR. `onStatus` hears 'steamcmd',
+ * 'signing-in', 'confirm', 'downloading' and 'installing'. A failure Steam
+ * explained carries it as `reason`.
+ */
+export function downloadSceneAssets({account, ask, onStatus, log, cancellable = null}) {
+    return withSteamCmd({onStatus, log, cancellable}, async record => {
         onStatus('signing-in');
-        const {depotDir, failure} = await downloadDepot({account, ask, onStatus, record, cancellable});
+        const {depotDir, failure} = await runSteamCmd({
+            commands: ['+@sSteamCmdForcePlatformType', 'windows', '+login', account,
+                '+download_depot', WALLPAPER_ENGINE_APP_ID, CONTENT_DEPOT_ID],
+            ask, onStatus, record, cancellable,
+        });
 
         const depot = depotDir ?? DEFAULT_DEPOT_DIR;
         const assets = GLib.build_filenamev([depot, 'assets']);
@@ -277,11 +292,27 @@ export async function downloadSceneAssets({account, ask, onStatus, log, cancella
         // The rest of the depot is the Windows app: only delete it from SteamCMD's own folder.
         if (GLib.canonicalize_filename(depot, null).startsWith(`${STEAMCMD_DIR}/`))
             await runCommand(['rm', '-rf', depot], cancellable);
-    } catch (e) {
-        output.push(e.message);
-        throw e;
-    } finally {
-        GLib.mkdir_with_parents(GLib.path_get_dirname(log), 0o755);
-        GLib.file_set_contents(log, `${output.join('\n')}\n`);
-    }
+    });
+}
+
+/**
+ * Downloads the Workshop wallpaper `id` as `account` into LOCAL_WORKSHOP_LIBRARY,
+ * where the library finds it. Reports and fails like downloadSceneAssets.
+ */
+export function downloadWorkshopItem({account, id, ask, onStatus, log, cancellable = null}) {
+    return withSteamCmd({onStatus, log, cancellable}, async record => {
+        onStatus('signing-in');
+        const {failure} = await runSteamCmd({
+            commands: ['+force_install_dir', LOCAL_WORKSHOP_LIBRARY, '+login', account,
+                '+workshop_download_item', WALLPAPER_ENGINE_APP_ID, id],
+            ask, onStatus, record, cancellable,
+        });
+        const project = GLib.build_filenamev([
+            LOCAL_WORKSHOP_LIBRARY, 'steamapps', 'workshop', 'content', WALLPAPER_ENGINE_APP_ID, id, 'project.json']);
+        if (!GLib.file_test(project, GLib.FileTest.EXISTS)) {
+            const error = new Error(`SteamCMD did not download Workshop item ${id} (${failure ?? 'no reason given'})`);
+            error.reason = failure;
+            throw error;
+        }
+    });
 }

@@ -43,6 +43,8 @@ const LOCAL_SCENE_RENDERER_PATCHES = GLib.build_filenamev(
     [DATA_DIR, 'linux-wallpaperengine', 'patches.sha256']);
 // Where the picker installs the scene assets it downloads with SteamCMD.
 export const LOCAL_ASSETS_DIR = GLib.build_filenamev([DATA_DIR, 'assets']);
+// Where SteamCMD downloads Workshop wallpapers, as the root of a Steam library.
+export const LOCAL_WORKSHOP_LIBRARY = GLib.build_filenamev([DATA_DIR, 'workshop']);
 
 /** Fills the %s placeholders of a translated string, in order. */
 export function format(template, ...values) {
@@ -147,9 +149,9 @@ export function loadProject(dir) {
     };
 }
 
-/** Where Steam puts downloaded Workshop wallpapers, one directory per library. */
+/** Where Steam and SteamCMD put downloaded Workshop wallpapers, one directory per library. */
 export function findWorkshopDirs() {
-    return findSteamLibraries().map(library =>
+    return [...findSteamLibraries(), LOCAL_WORKSHOP_LIBRARY].map(library =>
         GLib.build_filenamev([library, 'steamapps', 'workshop', 'content', WALLPAPER_ENGINE_APP_ID]));
 }
 

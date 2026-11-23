@@ -16,9 +16,14 @@ import System from 'system';
 import {
     listProjects, loadProject, resolveProperties, findSceneRenderer, isSceneRendererOutdated, findAssetsDir,
     findWorkshopDirs, isSceneSupported, format, listGpus, getSettings, gettext as _, APP_DIR, CACHE_DIR,
+    LOCAL_WORKSHOP_LIBRARY,
 } from './library.js';
 import {evaluateCondition} from './conditions.js';
-import {downloadSceneAssets, savedAccount, signOut} from './sceneAssets.js';
+import {downloadSceneAssets, downloadWorkshopItem, savedAccount, signOut} from './sceneAssets.js';
+import {
+    SignInRequired, sessionFromCookies, loadSession, saveSession, clearSession, freshSession, fetchSubscriptions,
+    setSubscribed,
+} from './steamCommunity.js';
 import * as Workshop from './workshop.js';
 
 const APPLICATION_ID = 'io.github.koukeneko.Nekoland.PaperEngine';
@@ -35,8 +40,6 @@ const MARGIN = 12;
 // Cards and navigation rows carry this much padding of their own, so their
 // containers are inset by the difference to keep content MARGIN from the edge.
 const INSET = 6;
-
-const STEAM_INSTALL_URI = 'steam://install/431960';
 
 // Labels in these tables are translated where they are shown: gettext is not
 // available yet while this module loads.
@@ -71,6 +74,12 @@ const WORKSHOP_VIEWS = [
     ['recent', 'document-open-recent-symbolic', N_('Most recent')],
     ['top', 'emblem-favorite-symbolic', N_('Most subscribed')],
 ];
+// Why SteamCMD failed, as readSteamCmdLine tells.
+const STEAM_FAILURES = {
+    'sign-in': N_('Steam did not accept the sign-in'),
+    'rate-limit': N_('Steam is limiting sign-ins. Try again later.'),
+    'not-owned': N_('This Steam account does not own Wallpaper Engine'),
+};
 const SUBSCRIBED_VIEW = ['subscribed', 'emblem-ok-symbolic', N_('Subscribed')];
 const SETTINGS_VIEW = ['settings', 'emblem-system-symbolic', N_('Playback and performance')];
 const VIEW_TITLES = {
@@ -203,6 +212,13 @@ class Picker {
         this._settings = settings;
         this._view = 'all';
         this._projects = [];
+        // The Steam Community session, and the Workshop items it subscribes to once Steam has said.
+        this._steamSession = null;
+        this._subscribed = null;
+        // Subscriptions waiting for or in their download, one at a time.
+        this._downloading = new Set();
+        this._downloadQueue = Promise.resolve();
+        this._steamCmdDeclined = false;
         this._query = '';
         this._tag = null;
         this._workshopPage = 1;
@@ -248,6 +264,7 @@ class Picker {
         });
 
         this._reloadLibrary();
+        this._connectSteam();
     }
 
     _destroy() {
@@ -692,11 +709,6 @@ class Picker {
             'downloading': _('Downloading the scene assets'),
             'installing': _('Installing the scene assets'),
         };
-        const failureTitles = {
-            'sign-in': _('Steam did not accept the sign-in'),
-            'rate-limit': _('Steam is limiting sign-ins. Try again later.'),
-            'not-owned': _('This Steam account does not own Wallpaper Engine'),
-        };
         this._downloadingAssets = true;
         try {
             await downloadSceneAssets({
@@ -715,12 +727,258 @@ class Picker {
                 return;
             }
             console.error(e);
-            this._setSceneNotice(failureTitles[e.reason] ?? _('The scene assets could not be downloaded'), _('Show log'),
+            this._setSceneNotice(e.reason ? _(STEAM_FAILURES[e.reason]) : _('The scene assets could not be downloaded'), _('Show log'),
                 () => Gio.AppInfo.launch_default_for_uri(Gio.File.new_for_path(log).get_uri(), null));
             return;
         }
         this._downloadingAssets = false;
         this._reloadLibrary();
+    }
+
+    // ───────── Steam subscriptions ─────────
+
+    _toast(title) {
+        this._toastOverlay.add_toast(new Adw.Toast({title}));
+    }
+
+    async _connectSteam() {
+        try {
+            this._steamSession = await loadSession();
+        } catch (e) {
+            console.warn(`Cannot read the saved Steam session: ${e.message}`);
+        }
+        this._refreshSteamAccount?.();
+        if (this._steamSession)
+            this._syncSubscriptions();
+        else
+            this._reloadLibrary();
+    }
+
+    _signInToSteam() {
+        if (this._signingIn)
+            return;
+        this._signingIn = true;
+        const process = Gio.Subprocess.new(['gjs', '-m', GLib.build_filenamev([APP_DIR, 'steamSignIn.js'])],
+            Gio.SubprocessFlags.STDOUT_PIPE);
+        process.communicate_utf8_async(null, this._cancellable, async (_process, result) => {
+            this._signingIn = false;
+            let stdout;
+            try {
+                [, stdout] = process.communicate_utf8_finish(result);
+            } catch (e) {
+                return;
+            }
+            // Closed without signing in.
+            if (!process.get_successful())
+                return;
+            let session = null;
+            try {
+                const {cookie, refresh} = JSON.parse(stdout.trim().split('\n').pop());
+                session = sessionFromCookies(cookie, refresh);
+            } catch (e) {
+                console.error(`Unreadable answer from the sign-in window: ${e.message}`);
+            }
+            if (!session) {
+                this._toast(_('Steam did not sign in'));
+                return;
+            }
+            try {
+                await saveSession(session);
+            } catch (e) {
+                console.warn(`The Steam session is not saved: ${e.message}`);
+            }
+            this._steamSession = session;
+            this._refreshSteamAccount?.();
+            this._syncSubscriptions();
+        });
+    }
+
+    async _signOutOfSteam() {
+        this._steamSession = null;
+        this._subscribed = null;
+        this._refreshSteamAccount?.();
+        await clearSession();
+        this._reloadLibrary();
+    }
+
+    // Runs `call` with the session, renewed when due; Steam ending the session signs out.
+    async _withSteam(call) {
+        try {
+            this._steamSession = await freshSession(this._steamSession, this._cancellable);
+            return await call(this._steamSession);
+        } catch (e) {
+            if (e instanceof SignInRequired) {
+                this._toast(_('Steam ended the sign-in. Sign in again.'));
+                await this._signOutOfSteam().catch(error => console.error(error));
+            }
+            throw e;
+        }
+    }
+
+    _isCancelled(e) {
+        return this._cancellable.is_cancelled() || e.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED);
+    }
+
+    // Like Wallpaper Engine: what the account subscribes to is downloaded, and
+    // what it no longer subscribes to leaves the library.
+    async _syncSubscriptions() {
+        let ids;
+        try {
+            ids = await this._withSteam(session => fetchSubscriptions(session, this._cancellable));
+        } catch (e) {
+            if (!this._isCancelled(e) && !(e instanceof SignInRequired)) {
+                console.error(e);
+                this._toast(_('The subscriptions could not be read'));
+            }
+            return;
+        }
+        this._subscribed = new Set(ids);
+        // Every project, also those of types the library does not show, so none is downloaded twice.
+        const all = listProjects(this._settings.get_strv('extra-dirs'));
+        for (const project of all) {
+            if (project.workshopId && !this._subscribed.has(project.workshopId))
+                await this._removeDownload(project);
+        }
+        for (const id of ids) {
+            if (!all.some(project => project.workshopId === id))
+                this._queueDownload(id);
+        }
+        this._reloadLibrary();
+    }
+
+    _queueDownload(id) {
+        if (this._downloading.has(id))
+            return;
+        this._downloading.add(id);
+        this._downloadQueue = this._downloadQueue.then(() => this._downloadSubscription(id));
+    }
+
+    async _downloadSubscription(id) {
+        const log = GLib.build_filenamev([CACHE_DIR, 'download-workshop-item.log']);
+        try {
+            const account = savedAccount() ?? await this._askSteamCmdAccount();
+            if (account) {
+                await downloadWorkshopItem({
+                    account, id, log, cancellable: this._cancellable,
+                    ask: kind => this._askSteam(kind),
+                    onStatus: () => {},
+                });
+            }
+        } catch (e) {
+            if (this._isCancelled(e))
+                return;
+            console.error(e);
+            const toast = new Adw.Toast({
+                title: e.reason ? _(STEAM_FAILURES[e.reason]) : _('The wallpaper could not be downloaded'),
+                button_label: _('Show log'),
+            });
+            toast.connect('button-clicked', () =>
+                Gio.AppInfo.launch_default_for_uri(Gio.File.new_for_path(log).get_uri(), null));
+            this._toastOverlay.add_toast(toast);
+        } finally {
+            this._downloading.delete(id);
+        }
+        this._reloadLibrary();
+        if (this._selected?.id === id)
+            this._showDetails(this._selected);
+    }
+
+    // The account SteamCMD downloads as, asked once a session when it has none saved.
+    _askSteamCmdAccount() {
+        if (this._steamCmdDeclined)
+            return Promise.resolve(null);
+        const account = new Adw.EntryRow({title: _('Steam account name')});
+        const fields = new Adw.PreferencesGroup();
+        fields.add(account);
+        const dialog = new Adw.AlertDialog({heading: _('Sign in to download'), extra_child: fields});
+        dialog.add_response('cancel', _('Cancel'));
+        dialog.add_response('sign-in', _('Sign in'));
+        dialog.set_response_appearance('sign-in', Adw.ResponseAppearance.SUGGESTED);
+        dialog.set_response_enabled('sign-in', false);
+        account.connect('changed', () => dialog.set_response_enabled('sign-in', account.text.trim() !== ''));
+        return new Promise(resolve => {
+            let answered = false;
+            const answer = name => {
+                if (answered)
+                    return;
+                answered = true;
+                this._steamCmdDeclined = name === null;
+                resolve(name);
+            };
+            account.connect('entry-activated', () => {
+                if (account.text.trim() !== '') {
+                    answer(account.text.trim());
+                    dialog.close();
+                }
+            });
+            dialog.connect('response', (_dialog, response) => answer(response === 'sign-in' ? account.text.trim() : null));
+            dialog.present(this._window);
+        });
+    }
+
+    async _subscribe(item) {
+        try {
+            await this._withSteam(session => setSubscribed(session, item.id, true, this._cancellable));
+        } catch (e) {
+            if (!this._isCancelled(e) && !(e instanceof SignInRequired)) {
+                console.error(e);
+                this._toast(_('Steam did not subscribe to this wallpaper'));
+            }
+            return;
+        }
+        this._subscribed?.add(item.id);
+        this._queueDownload(item.id);
+        if (this._selected === item)
+            this._showDetails(item);
+    }
+
+    _confirmUnsubscribe(project) {
+        const dialog = new Adw.AlertDialog({
+            heading: _('Unsubscribe from this wallpaper?'),
+            body: _('It is also removed from this device.'),
+        });
+        dialog.add_response('cancel', _('Cancel'));
+        dialog.add_response('unsubscribe', _('Unsubscribe'));
+        dialog.set_response_appearance('unsubscribe', Adw.ResponseAppearance.DESTRUCTIVE);
+        dialog.connect('response', async (_dialog, response) => {
+            if (response !== 'unsubscribe')
+                return;
+            try {
+                await this._withSteam(session => setSubscribed(session, project.workshopId, false, this._cancellable));
+            } catch (e) {
+                if (!this._isCancelled(e) && !(e instanceof SignInRequired)) {
+                    console.error(e);
+                    this._toast(_('Steam did not unsubscribe from this wallpaper'));
+                }
+                return;
+            }
+            this._subscribed?.delete(project.workshopId);
+            await this._removeDownload(project);
+            this._clearDetails(_('Select a wallpaper to see its details.'));
+            this._reloadLibrary();
+        });
+        dialog.present(this._window);
+    }
+
+    // Deletes a wallpaper this picker downloaded; those of Steam libraries and the user's folders stay.
+    async _removeDownload(project) {
+        if (!project.dir.startsWith(`${LOCAL_WORKSHOP_LIBRARY}/`))
+            return;
+        if (this._inUseDirs().has(project.dir))
+            this._applyToAll('');
+        this._settings.set_strv('playlist', this._settings.get_strv('playlist').filter(dir => dir !== project.dir));
+        try {
+            const remove = Gio.Subprocess.new(['rm', '-rf', project.dir], Gio.SubprocessFlags.NONE);
+            await new Promise((resolve, reject) => remove.wait_check_async(null, (_remove, result) => {
+                try {
+                    resolve(remove.wait_check_finish(result));
+                } catch (e) {
+                    reject(e);
+                }
+            }));
+        } catch (e) {
+            console.error(`Cannot remove ${project.dir}: ${e.message}`);
+        }
     }
 
     _populateLibrary() {
@@ -742,8 +1000,10 @@ class Picker {
             this._showStatus({
                 icon: 'preferences-desktop-wallpaper-symbolic',
                 title: _('No wallpapers here yet'),
-                description: _('Install Wallpaper Engine in Steam, then subscribe to wallpapers in the Workshop; they show up here once Steam has downloaded them.'),
-                action: [_('Install Wallpaper Engine'), () => Gio.AppInfo.launch_default_for_uri(STEAM_INSTALL_URI, null)],
+                description: '',
+                action: this._steamSession
+                    ? [_('Browse the Workshop'), () => this._showView('trend')]
+                    : [_('Sign in to Steam'), () => this._signInToSteam()],
             });
             this._clearDetails(_('Select a wallpaper to see its details.'));
             return;
@@ -937,12 +1197,13 @@ class Picker {
             widgets.push(pill(_('Stop wallpaper'), [], () => this._applyToAll('')));
         } else if (project) {
             widgets.push(pill(_('Apply wallpaper'), ['suggested-action'], () => this._applyToAll(project.dir)));
+        } else if (this._downloading.has(item.id)) {
+            widgets.push(pill(_('Downloading'), [], null));
+        } else if (this._steamSession) {
+            widgets.push(pill(format(_('Subscribe (%s)'), formatSize(item.size)), ['suggested-action'],
+                () => this._subscribe(item)));
         } else {
-            widgets.push(pill(format(_('Subscribe in Steam (%s)'), formatSize(item.size)), ['suggested-action'], () => {
-                Gio.AppInfo.launch_default_for_uri(Workshop.steamPageUri(item.id), null);
-                this._toastOverlay.add_toast(new Adw.Toast({title: _('Opened in Steam: press Subscribe there and it downloads automatically.')}));
-            }));
-            addCaption(_('Subscribing goes through your Steam account; the wallpaper appears in the library once it is downloaded.'), ['dim-label', 'caption']);
+            widgets.push(pill(_('Sign in to Steam'), ['suggested-action'], () => this._signInToSteam()));
         }
         // Everything else the wallpaper can do, as one list.
         const actions = new Adw.PreferencesGroup();
@@ -975,8 +1236,10 @@ class Picker {
         }
         const workshopId = item.dir ? item.workshopId : item.id;
         if (workshopId && project) {
-            addAction(_('Open Workshop page in Steam'), () =>
-                Gio.AppInfo.launch_default_for_uri(Workshop.steamPageUri(workshopId), null));
+            addAction(_('Open Workshop page'), () =>
+                Gio.AppInfo.launch_default_for_uri(Workshop.pageUrl(workshopId), null));
+            if (this._subscribed?.has(workshopId))
+                addAction(_('Unsubscribe'), () => this._confirmUnsubscribe(project));
         }
 
         if (!item.dir) {
@@ -1294,10 +1557,30 @@ class Picker {
         languageRow.subtitle = _('Takes effect the next time this window is opened');
         appearance.add(languageRow);
 
-        // The account SteamCMD stays signed in as for downloading the scene assets.
         const steam = new Adw.PreferencesGroup({title: _('Steam account')});
         page.add(steam);
-        const accountRow = new Adw.ActionRow();
+        // The Steam Community sign-in, which the subscriptions come from.
+        const communityRow = new Adw.ActionRow({title: _('Workshop subscriptions')});
+        const communityButton = new Gtk.Button({valign: Gtk.Align.CENTER});
+        communityRow.add_suffix(communityButton);
+        steam.add(communityRow);
+        this._refreshSteamAccount = () => {
+            communityRow.subtitle = this._steamSession ? _('Signed in') : _('Not signed in');
+            communityButton.label = this._steamSession ? _('Sign out') : _('Sign in');
+        };
+        communityButton.connect('clicked', () => {
+            if (!this._steamSession) {
+                this._signInToSteam();
+                return;
+            }
+            this._signOutOfSteam().catch(e => {
+                console.error(e);
+                this._toast(_('Could not sign out of Steam'));
+            });
+        });
+        this._refreshSteamAccount();
+        // The account SteamCMD stays signed in as for downloads.
+        const accountRow = new Adw.ActionRow({subtitle: _('Downloads')});
         const signOutButton = new Gtk.Button({label: _('Sign out'), valign: Gtk.Align.CENTER});
         accountRow.add_suffix(signOutButton);
         steam.add(accountRow);
@@ -1309,7 +1592,7 @@ class Picker {
         signOutButton.connect('clicked', () => {
             const dialog = new Adw.AlertDialog({
                 heading: _('Sign out of Steam?'),
-                body: _('The saved sign-in is removed. Downloading the scene assets again asks for the password.'),
+                body: _('The saved sign-in is removed. Downloading again asks for the password.'),
             });
             dialog.add_response('cancel', _('Cancel'));
             dialog.add_response('sign-out', _('Sign out'));

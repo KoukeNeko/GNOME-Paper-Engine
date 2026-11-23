@@ -53,9 +53,9 @@ export function saveCache() {
     cache.dump();
 }
 
-/** The Steam client URL of a Workshop item's page. */
-export function steamPageUri(id) {
-    return `steam://url/CommunityFilePage/${id}`;
+/** The web address of a Workshop item's page. */
+export function pageUrl(id) {
+    return `https://steamcommunity.com/sharedfiles/filedetails/?id=${id}`;
 }
 
 function fetchBytes(url, cancellable) {
