@@ -36,7 +36,7 @@ index 6a73fe9..7ef96b6 100644
  	    std::string hwdec;
  	    /** Indicates if pausing should happen when something goes fullscreen */
 diff --git a/src/WallpaperEngine/Application/WallpaperApplication.cpp b/src/WallpaperEngine/Application/WallpaperApplication.cpp
-index c9107af..29900ea 100644
+index c9107af..bf7a0ff 100644
 --- a/src/WallpaperEngine/Application/WallpaperApplication.cpp
 +++ b/src/WallpaperEngine/Application/WallpaperApplication.cpp
 @@ -581,8 +581,9 @@ void WallpaperApplication::takeScreenshot (const std::filesystem::path& filename
@@ -51,6 +51,29 @@ index c9107af..29900ea 100644
  	const auto bufferSize = readWidth * readHeight * 3;
  	auto* buffer = new uint8_t[bufferSize];
  
+@@ -881,10 +882,6 @@ void WallpaperApplication::render () {
+ 	timeinfo = localtime (&seconds);
+ 	g_Daytime = static_cast<float> ((timeinfo->tm_hour * 60) + timeinfo->tm_min) / (24.0f * 60.0f);
+ 
+-	// keep track of the previous frame's time
+-	g_TimeLast = g_Time;
+-	// calculate the current time value
+-	g_Time = m_videoDriver->getRenderTime ();
+ 	// update audio recorder
+ 	m_audioDriver->update ();
+ 	// update the media source
+@@ -970,6 +967,11 @@ void WallpaperApplication::show () {
+ }
+ 
+ void WallpaperApplication::update (Render::Drivers::Output::OutputViewport* viewport) {
++    // The time is taken for every frame drawn: on Wayland frames are drawn from frame
++    // callbacks, several of which can be dispatched in one pass of the main loop, and
++    // a time taken once per pass left them all showing the same moment.
++    g_TimeLast = g_Time;
++    g_Time = m_videoDriver->getRenderTime ();
+     // render the scene
+     m_renderContext->render (viewport);
+ }
 diff --git a/src/WallpaperEngine/Audio/AudioStream.h b/src/WallpaperEngine/Audio/AudioStream.h
 index 7b2bb7e..24aa8b8 100644
 --- a/src/WallpaperEngine/Audio/AudioStream.h
@@ -297,6 +320,63 @@ index 01063d9..3d3544e 100644
      glfwWindowHint (GLFW_CONTEXT_VERSION_MAJOR, 3);
      glfwWindowHint (GLFW_CONTEXT_VERSION_MINOR, 3);
      glfwWindowHint (GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+diff --git a/src/WallpaperEngine/Render/Drivers/Output/WaylandOutputViewport.cpp b/src/WallpaperEngine/Render/Drivers/Output/WaylandOutputViewport.cpp
+index 7037cfd..e989e61 100644
+--- a/src/WallpaperEngine/Render/Drivers/Output/WaylandOutputViewport.cpp
++++ b/src/WallpaperEngine/Render/Drivers/Output/WaylandOutputViewport.cpp
+@@ -1,4 +1,6 @@
+ #include "WaylandOutputViewport.h"
++
++#include <unistd.h>
+ #include "WallpaperEngine/Logging/Log.h"
+ 
+ #define class _class
+@@ -97,6 +99,19 @@ static void surfaceFrameCallback (void* data, struct wl_callback* cb, uint32_t t
+     wl_callback_destroy (cb);
+ 
+     viewport->frameCallback = nullptr;
++
++    // Frames are drawn whenever the compositor asks, so the frame rate limit is kept here.
++    const auto driver = viewport->getDriver ();
++    const float minimumTime = 1.0f / driver->getApp ().getContext ().settings.render.maximumFPS;
++    const float sinceLast = driver->getRenderTime () - viewport->lastFrameTime;
++    if (sinceLast < minimumTime) {
++	usleep ((minimumTime - sinceLast) * 1000000);
++    }
++    viewport->lastFrameTime = driver->getRenderTime ();
++    // Several callbacks can be dispatched in one pass of the main loop, which is what
++    // counts frames otherwise; a scene is only drawn again once the count moves.
++    driver->advanceFrameCounter ();
++
+     viewport->rendering = true;
+     viewport->getDriver ()->getApp ().update (viewport);
+     viewport->rendering = false;
+diff --git a/src/WallpaperEngine/Render/Drivers/Output/WaylandOutputViewport.h b/src/WallpaperEngine/Render/Drivers/Output/WaylandOutputViewport.h
+index 909b327..a69c187 100644
+--- a/src/WallpaperEngine/Render/Drivers/Output/WaylandOutputViewport.h
++++ b/src/WallpaperEngine/Render/Drivers/Output/WaylandOutputViewport.h
+@@ -47,6 +47,8 @@ namespace Output {
+ 	wl_surface* surface = nullptr;
+ 	zwlr_layer_surface_v1* layerSurface = nullptr;
+ 	wl_callback* frameCallback = nullptr;
++	// When the last frame was drawn, in the driver's render time.
++	float lastFrameTime = 0;
+ 	glm::dvec2 mousePos = { 0, 0 };
+ 	WallpaperEngine::Input::MouseClickStatus leftClick = WallpaperEngine::Input::MouseClickStatus::Released;
+ 	WallpaperEngine::Input::MouseClickStatus rightClick = WallpaperEngine::Input::MouseClickStatus::Released;
+diff --git a/src/WallpaperEngine/Render/Drivers/WaylandOpenGLDriver.h b/src/WallpaperEngine/Render/Drivers/WaylandOpenGLDriver.h
+index a42a59f..fecf61e 100644
+--- a/src/WallpaperEngine/Render/Drivers/WaylandOpenGLDriver.h
++++ b/src/WallpaperEngine/Render/Drivers/WaylandOpenGLDriver.h
+@@ -70,6 +70,8 @@ public:
+     void hideWindow () override;
+     glm::ivec2 getFramebufferSize () const override;
+     uint32_t getFrameCounter () const override;
++    /** Counts a frame drawn from a frame callback, which a scene redraws for */
++    void advanceFrameCounter () { m_frameCounter++; }
+     void dispatchEventQueue () override;
+     [[nodiscard]] void* getProcAddress (const char* name) const override;
+ 
 diff --git a/src/WallpaperEngine/Render/Objects/CImage.cpp b/src/WallpaperEngine/Render/Objects/CImage.cpp
 index 470e295..2cf2969 100644
 --- a/src/WallpaperEngine/Render/Objects/CImage.cpp
