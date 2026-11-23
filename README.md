@@ -208,9 +208,9 @@ through WirePlumber.
 ./uninstall.sh
 ```
 
-The scene renderer, any downloaded scene assets and SteamCMD with its saved
-Steam sign-in stay in your home folder. To remove them as well, and the still
-image, which also unsets Nekoland's wallpaper if it is that still:
+Nekoland's wallpaper goes back to the one the still replaced. The scene
+renderer, any downloaded scene assets and SteamCMD with its saved Steam
+sign-in stay in your home folder. To remove them as well, and the still image:
 
 ```bash
 ./uninstall.sh --all

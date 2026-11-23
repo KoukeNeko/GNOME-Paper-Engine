@@ -3,7 +3,8 @@
 #
 # Removes what install.sh installed for the current user. With --all, also
 # removes the scene renderer, the downloaded scene assets, SteamCMD with its
-# saved Steam sign-in, the still image and the caches.
+# saved Steam sign-in, the still image and the caches. Either way Nekoland's
+# wallpaper goes back to what it was before the still replaced it.
 
 set -euo pipefail
 
@@ -26,9 +27,17 @@ autostart = tomllib.loads(sys.stdin.read()).get("autostart", [])
 if sys.argv[1] in autostart:
     print(json.dumps([command for command in autostart if command != sys.argv[1]]))' "$DAEMON" <<<"$config")"
     [[ -z "$autostart" ]] || nekoland msg "set autostart = $autostart"
-    # The still image may be Nekoland's wallpaper; deleting it would leave none.
-    if $all && [[ "$config" == *"wallpaper = \"$DATA_DIR/nekoland-paper-engine/still-"* ]]; then
-        nekoland msg "unset wallpaper"
+    # Nekoland's wallpaper goes back to the one the still replaced, which the daemon kept.
+    if [[ "$config" == *"wallpaper = \"$DATA_DIR/nekoland-paper-engine/still-"* ]]; then
+        previous="$(gsettings --schemadir "$APP_DIR/schemas" get io.github.koukeneko.Nekoland.PaperEngine previous-background \
+            | python3 -c 'import ast, json, sys
+text = sys.stdin.read().strip().removeprefix("@ms ")
+print("" if text == "nothing" else json.dumps(ast.literal_eval(text)))')"
+        if [[ -n "$previous" && "$previous" != '""' ]]; then
+            nekoland msg "set wallpaper = $previous"
+        else
+            nekoland msg "unset wallpaper"
+        fi
     fi
 else
     echo "Nekoland is not running here: take \"$DAEMON\" out of autostart in ~/.config/nekoland/config.toml."
