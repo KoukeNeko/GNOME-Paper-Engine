@@ -36,10 +36,11 @@ const POLL_INTERVAL_MS = 1000;
 // Nekoland's maximized windows leave the menu bar and the Dock their room, so
 // a window over this much of a display counts as maximized.
 const MAXIMIZED_SHARE = 0.8;
-// How long a wallpaper gets to load before a still of it is taken, and how
-// long the renderer then gets to write it.
+// How long a wallpaper gets to load before a still of it is taken, how often
+// the daemon then looks whether it is written, and for how long at most.
 const STILL_DELAY_MS = 5000;
 const STILL_WRITE_MS = 1000;
+const STILL_TIMEOUT_MS = 60000;
 // Each still gets a name of its own: Nekoland draws its wallpaper anew, and
 // its overview forgets the old picture, only when the path changes.
 const STILL_PREFIX = 'still-';
@@ -315,7 +316,18 @@ class Daemon {
         this._stillId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, STILL_DELAY_MS, () => {
             if (renderer.builtin)
                 this._write(renderer, `still ${main} ${path}`);
+            // The scene renderer writes it after its first frames, which can take
+            // a while longer; the picture is whole once its size stops changing.
+            const deadline = GLib.get_monotonic_time() + STILL_TIMEOUT_MS * 1000;
+            let size = -1;
             this._stillId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, STILL_WRITE_MS, () => {
+                const written = GLib.file_test(path, GLib.FileTest.EXISTS)
+                    ? Gio.File.new_for_path(path).query_info('standard::size', Gio.FileQueryInfoFlags.NONE, null).get_size()
+                    : -1;
+                if ((written < 0 || written !== size) && GLib.get_monotonic_time() < deadline) {
+                    size = written;
+                    return GLib.SOURCE_CONTINUE;
+                }
                 this._stillId = 0;
                 this._applyStill(path).catch(e => console.warn(`No still of the wallpaper: ${e.message}`));
                 return GLib.SOURCE_REMOVE;
