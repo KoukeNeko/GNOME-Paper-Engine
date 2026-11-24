@@ -321,7 +321,7 @@ index 01063d9..3d3544e 100644
      glfwWindowHint (GLFW_CONTEXT_VERSION_MINOR, 3);
      glfwWindowHint (GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 diff --git a/src/WallpaperEngine/Render/Drivers/Output/WaylandOutputViewport.cpp b/src/WallpaperEngine/Render/Drivers/Output/WaylandOutputViewport.cpp
-index 7037cfd..e989e61 100644
+index 7037cfd..c71588a 100644
 --- a/src/WallpaperEngine/Render/Drivers/Output/WaylandOutputViewport.cpp
 +++ b/src/WallpaperEngine/Render/Drivers/Output/WaylandOutputViewport.cpp
 @@ -1,4 +1,6 @@
@@ -331,7 +331,29 @@ index 7037cfd..e989e61 100644
  #include "WallpaperEngine/Logging/Log.h"
  
  #define class _class
-@@ -97,6 +99,19 @@ static void surfaceFrameCallback (void* data, struct wl_callback* cb, uint32_t t
+@@ -47,14 +49,17 @@ static void geometry (
+ static void mode (void* data, wl_output* output, uint32_t flags, int32_t width, int32_t height, int32_t refresh) {
+     const auto viewport = static_cast<WaylandOutputViewport*> (data);
+ 
++    // Once the layer surface exists, its configure gives the size, in logical pixels. A mode
++    // sent again later, as when the compositor changes the colour depth, would otherwise
++    // replace it with the mode's physical size.
++    if (viewport->layerSurface) {
++	return;
++    }
++
+     // update viewport size (physical pixels; logicalSize comes from xdg-output or layer shell configure)
+     viewport->size = { width, height };
+     viewport->viewport = { 0, 0, viewport->size.x * viewport->scale, viewport->size.y * viewport->scale };
+ 
+-    if (viewport->layerSurface) {
+-	viewport->resize ();
+-    }
+-
+     if (viewport->initialized) {
+ 	viewport->getDriver ()->getOutput ().reset ();
+     }
+@@ -97,6 +102,19 @@ static void surfaceFrameCallback (void* data, struct wl_callback* cb, uint32_t t
      wl_callback_destroy (cb);
  
      viewport->frameCallback = nullptr;
