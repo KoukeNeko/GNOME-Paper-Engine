@@ -278,6 +278,125 @@ index 2150c6b..bf61825 100644
      MouseClickStatus m_leftClick = Released;
      MouseClickStatus m_rightClick = Released;
  };
+diff --git a/src/WallpaperEngine/Input/Drivers/WaylandMouseInput.cpp b/src/WallpaperEngine/Input/Drivers/WaylandMouseInput.cpp
+index b27b7cf..7114052 100644
+--- a/src/WallpaperEngine/Input/Drivers/WaylandMouseInput.cpp
++++ b/src/WallpaperEngine/Input/Drivers/WaylandMouseInput.cpp
+@@ -1,6 +1,7 @@
+ #include "WaylandMouseInput.h"
+ #include "WallpaperEngine/Render/Drivers/WaylandOpenGLDriver.h"
+ #include <chrono>
++#include <cstdio>
+ #include <cstdlib>
+ #include <cstring>
+ #include <glm/common.hpp>
+@@ -28,18 +29,18 @@ void WaylandMouseInput::update () {
+     }
+ 
+     const auto now = std::chrono::steady_clock::now ();
+-    if (now - this->m_lastHyprlandQuery < std::chrono::milliseconds (16)) {
++    if (now - this->m_lastCursorQuery < std::chrono::milliseconds (16)) {
+ 	return;
+     }
+-    this->m_lastHyprlandQuery = now;
++    this->m_lastCursorQuery = now;
+ 
+-    const auto globalCursor = this->queryHyprlandCursorPosition ();
++    const auto globalCursor = this->queryCompositorCursorPosition ();
+     if (!globalCursor.has_value ()) {
+ 	this->m_pos = { 0, 0 };
+ 	return;
+     }
+ 
+-    for (const auto* viewport : this->m_waylandDriver.m_screens) {
++    for (auto* viewport : this->m_waylandDriver.m_screens) {
+ 	if (!viewport || viewport->size.x <= 0 || viewport->size.y <= 0) {
+ 	    continue;
+ 	}
+@@ -51,6 +52,8 @@ void WaylandMouseInput::update () {
+ 	}
+ 
+ 	this->m_pos = { localX * viewport->scale, (viewport->size.y - localY) * viewport->scale };
++	// What position () reads; a display the pointer is not on keeps where it last was.
++	viewport->mousePos = this->m_pos;
+ 	return;
+     }
+ 
+@@ -106,15 +109,21 @@ WaylandMouseInput::getActiveOutputViewport () const {
+     return nullptr;
+ }
+ 
+-std::optional<glm::dvec2> WaylandMouseInput::queryHyprlandCursorPosition () const {
+-    const char* signature = std::getenv ("HYPRLAND_INSTANCE_SIGNATURE");
+-    const char* runtime = std::getenv ("XDG_RUNTIME_DIR");
+-    if (!signature || !runtime) {
+-	return std::nullopt;
++std::optional<glm::dvec2> WaylandMouseInput::queryCompositorCursorPosition () const {
++    // Nekoland answers "cursor" with "X Y", in points like Hyprland's.
++    const char* nekolandSocket = std::getenv ("NEKOLAND_SOCKET");
++    std::string socketPath;
++    if (nekolandSocket) {
++	socketPath = nekolandSocket;
++    } else {
++	const char* signature = std::getenv ("HYPRLAND_INSTANCE_SIGNATURE");
++	const char* runtime = std::getenv ("XDG_RUNTIME_DIR");
++	if (!signature || !runtime) {
++	    return std::nullopt;
++	}
++	socketPath = std::string (runtime) + "/hypr/" + signature + "/.socket.sock";
+     }
+ 
+-    const std::string socketPath = std::string (runtime) + "/hypr/" + signature + "/.socket.sock";
+-
+     int fd = socket (AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+     if (fd < 0) {
+ 	return std::nullopt;
+@@ -141,7 +150,7 @@ std::optional<glm::dvec2> WaylandMouseInput::queryHyprlandCursorPosition () cons
+ 	return std::nullopt;
+     }
+ 
+-    constexpr const char* request = "j/cursorpos";
++    const char* request = nekolandSocket ? "cursor" : "j/cursorpos";
+     if (send (fd, request, std::strlen (request), MSG_NOSIGNAL) < 0) {
+ 	close (fd);
+ 	return std::nullopt;
+@@ -156,6 +165,14 @@ std::optional<glm::dvec2> WaylandMouseInput::queryHyprlandCursorPosition () cons
+     }
+     close (fd);
+ 
++    if (nekolandSocket) {
++	glm::dvec2 cursor;
++	if (std::sscanf (response.c_str (), "%lf %lf", &cursor.x, &cursor.y) != 2) {
++	    return std::nullopt;
++	}
++	return cursor;
++    }
++
+     static const std::regex xRegex (R"("x"\s*:\s*(-?\d+(?:\.\d+)?))");
+     static const std::regex yRegex (R"("y"\s*:\s*(-?\d+(?:\.\d+)?))");
+     std::smatch xMatch;
+diff --git a/src/WallpaperEngine/Input/Drivers/WaylandMouseInput.h b/src/WallpaperEngine/Input/Drivers/WaylandMouseInput.h
+index 5574437..33bf464 100644
+--- a/src/WallpaperEngine/Input/Drivers/WaylandMouseInput.h
++++ b/src/WallpaperEngine/Input/Drivers/WaylandMouseInput.h
+@@ -45,7 +45,7 @@ public:
+ 
+ private:
+     [[nodiscard]] const Render::Drivers::Output::WaylandOutputViewport* getActiveOutputViewport () const;
+-    [[nodiscard]] std::optional<glm::dvec2> queryHyprlandCursorPosition () const;
++    [[nodiscard]] std::optional<glm::dvec2> queryCompositorCursorPosition () const;
+ 
+     /**
+      * Wayland: Driver
+@@ -53,7 +53,7 @@ private:
+     const WallpaperEngine::Render::Drivers::WaylandOpenGLDriver& m_waylandDriver;
+ 
+     glm::dvec2 m_pos = {};
+-    std::chrono::steady_clock::time_point m_lastHyprlandQuery = {};
++    std::chrono::steady_clock::time_point m_lastCursorQuery = {};
+ };
+ } // namespace WallpaperEngine::Input::Drivers
+ 
 diff --git a/src/WallpaperEngine/Render/CWallpaper.cpp b/src/WallpaperEngine/Render/CWallpaper.cpp
 index d0f7eab..51f6e4f 100644
 --- a/src/WallpaperEngine/Render/CWallpaper.cpp
@@ -321,7 +440,7 @@ index 01063d9..3d3544e 100644
      glfwWindowHint (GLFW_CONTEXT_VERSION_MINOR, 3);
      glfwWindowHint (GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 diff --git a/src/WallpaperEngine/Render/Drivers/Output/WaylandOutputViewport.cpp b/src/WallpaperEngine/Render/Drivers/Output/WaylandOutputViewport.cpp
-index 7037cfd..c71588a 100644
+index 7037cfd..b5e57bb 100644
 --- a/src/WallpaperEngine/Render/Drivers/Output/WaylandOutputViewport.cpp
 +++ b/src/WallpaperEngine/Render/Drivers/Output/WaylandOutputViewport.cpp
 @@ -1,4 +1,6 @@
@@ -353,7 +472,7 @@ index 7037cfd..c71588a 100644
      if (viewport->initialized) {
  	viewport->getDriver ()->getOutput ().reset ();
      }
-@@ -97,6 +102,19 @@ static void surfaceFrameCallback (void* data, struct wl_callback* cb, uint32_t t
+@@ -97,6 +102,23 @@ static void surfaceFrameCallback (void* data, struct wl_callback* cb, uint32_t t
      wl_callback_destroy (cb);
  
      viewport->frameCallback = nullptr;
@@ -369,6 +488,10 @@ index 7037cfd..c71588a 100644
 +    // Several callbacks can be dispatched in one pass of the main loop, which is what
 +    // counts frames otherwise; a scene is only drawn again once the count moves.
 +    driver->advanceFrameCounter ();
++
++    // One pass of the main loop, which updates the input, can draw many frames, so the
++    // pointer is brought up to date for each frame here.
++    driver->getInputContext ().update ();
 +
      viewport->rendering = true;
      viewport->getDriver ()->getApp ().update (viewport);
@@ -386,6 +509,22 @@ index 909b327..a69c187 100644
  	glm::dvec2 mousePos = { 0, 0 };
  	WallpaperEngine::Input::MouseClickStatus leftClick = WallpaperEngine::Input::MouseClickStatus::Released;
  	WallpaperEngine::Input::MouseClickStatus rightClick = WallpaperEngine::Input::MouseClickStatus::Released;
+diff --git a/src/WallpaperEngine/Render/Drivers/WaylandOpenGLDriver.cpp b/src/WallpaperEngine/Render/Drivers/WaylandOpenGLDriver.cpp
+index e4b722d..95fc564 100644
+--- a/src/WallpaperEngine/Render/Drivers/WaylandOpenGLDriver.cpp
++++ b/src/WallpaperEngine/Render/Drivers/WaylandOpenGLDriver.cpp
+@@ -39,7 +39,10 @@ static void handlePointerEnter (
+ }
+ 
+ static void
+-handlePointerLeave (void* data, struct wl_pointer* wl_pointer, uint32_t serial, struct wl_surface* surface) { }
++handlePointerLeave (void* data, struct wl_pointer* wl_pointer, uint32_t serial, struct wl_surface* surface) {
++    // Off the background the compositor sends no motion, so the pointer is asked of it instead.
++    static_cast<WaylandOpenGLDriver*> (data)->viewportInFocus = nullptr;
++}
+ 
+ static void handlePointerAxis (void* data, wl_pointer* wl_pointer, uint32_t time, uint32_t axis, wl_fixed_t value) { }
+ 
 diff --git a/src/WallpaperEngine/Render/Drivers/WaylandOpenGLDriver.h b/src/WallpaperEngine/Render/Drivers/WaylandOpenGLDriver.h
 index a42a59f..fecf61e 100644
 --- a/src/WallpaperEngine/Render/Drivers/WaylandOpenGLDriver.h
